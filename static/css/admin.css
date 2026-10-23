@@ -41,3 +41,15 @@ h2 { margin-top: 32px; font-family: var(--font-display); }
   background: var(--color-error);
   color: #000000;
 }
+
+.small-button.primary,
+.small-button.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.active-task { outline: 2px solid var(--color-accent); }
+
+.performers { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.performer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

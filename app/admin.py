@@ -267,3 +267,101 @@ async def move_task(task_id: int, body: MoveBody):
         conn.close()
     await manager.broadcast()
     return {"ok": True}
+
+# ---------- Task lifecycle ----------
+
+class PerformerBody(BaseModel):
+    status: Literal["in", "sat_out", "dq"]
+
+
+@protected.post("/tasks/{task_id}/start")
+async def start_task(task_id: int):
+    conn = connect()
+    try:
+        task = conn.execute(
+            "SELECT status, stage, group_id FROM tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+        if task is None:
+            raise HTTPException(404, "Task not found.")
+        if task["status"] != "draft":
+            raise HTTPException(400, "This task has already started.")
+        if task["stage"] == "final":
+            raise HTTPException(400, "Final tasks can't be started yet.")
+
+        performers = conn.execute(
+            "SELECT id FROM players WHERE group_id = ? AND removed = 0",
+            (task["group_id"],),
+        ).fetchall()
+        if not performers:
+            raise HTTPException(400, "Nobody is in that group yet.")
+
+        # One transaction: the status change and the snapshot succeed or fail together.
+        conn.execute(
+            "UPDATE tasks SET status = 'active', opened_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (task_id,),
+        )
+        conn.executemany(
+            "INSERT INTO task_performers (task_id, player_id) VALUES (?, ?)",
+            [(task_id, p["id"]) for p in performers],
+        )
+        conn.execute("UPDATE settings SET value = 'game' WHERE key = 'tv_mode'")
+        conn.commit()
+    except sqlite3.IntegrityError:
+        raise HTTPException(400, "Another task is already running. Reveal it first.")
+    finally:
+        conn.close()
+    await manager.broadcast()
+    return {"ok": True}
+
+
+@protected.post("/tasks/{task_id}/reveal")
+async def reveal_task(task_id: int):
+    conn = connect()
+    try:
+        if get_task_status(conn, task_id) != "active":
+            raise HTTPException(400, "Only a running task can be revealed.")
+        conn.execute(
+            "UPDATE tasks SET status = 'revealed', revealed_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (task_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    await manager.broadcast()
+    return {"ok": True}
+
+
+@protected.post("/tasks/{task_id}/reopen")
+async def reopen_task(task_id: int):
+    conn = connect()
+    try:
+        if get_task_status(conn, task_id) != "revealed":
+            raise HTTPException(400, "Only revealed tasks can be reopened.")
+        conn.execute(
+            "UPDATE tasks SET status = 'active', revealed_at = NULL WHERE id = ?",
+            (task_id,),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        raise HTTPException(400, "Another task is already running. Reveal it first.")
+    finally:
+        conn.close()
+    await manager.broadcast()
+    return {"ok": True}
+
+
+@protected.patch("/tasks/{task_id}/performers/{player_id}")
+async def set_performer_status(task_id: int, player_id: int, body: PerformerBody):
+    conn = connect()
+    try:
+        cursor = conn.execute(
+            "UPDATE task_performers SET status = ? WHERE task_id = ? AND player_id = ?",
+            (body.status, task_id, player_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    if cursor.rowcount == 0:
+        raise HTTPException(404, "That player isn't performing in this task.")
+    await manager.broadcast()
+    return {"ok": True}

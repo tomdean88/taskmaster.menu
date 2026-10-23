@@ -1,6 +1,7 @@
 """Builds the snapshot each screen receives. Each audience only gets what it may see."""
 from app.config import PUBLIC_URL
 from app.db import connect
+from app.scoring import task_points
 
 
 def player_to_dict(row) -> dict:
@@ -18,9 +19,52 @@ def get_setting(conn, key: str) -> str:
     return row["value"] if row else ""
 
 
+def task_results(conn, task_id: int) -> dict[int, int]:
+    """Points per performer for one task, calculated from the ballots."""
+    performers = conn.execute(
+        """SELECT task_performers.player_id, task_performers.status
+           FROM task_performers
+           JOIN players ON players.id = task_performers.player_id
+           WHERE task_performers.task_id = ?
+             AND task_performers.status != 'sat_out'
+             AND players.removed = 0""",
+        (task_id,),
+    ).fetchall()
+
+    stars: dict[int, list[int]] = {
+        row["player_id"]: [] for row in performers if row["status"] == "in"
+    }
+    for row in conn.execute(
+        """SELECT scores.performer_id, scores.stars
+           FROM scores
+           JOIN players AS judges ON judges.id = scores.judge_id
+           WHERE scores.task_id = ? AND judges.removed = 0""",
+        (task_id,),
+    ):
+        if row["performer_id"] in stars:
+            stars[row["performer_id"]].append(row["stars"])
+
+    points = task_points(stars)
+    for row in performers:
+        if row["status"] == "dq":
+            points[row["player_id"]] = 0  # Greg's disqualification
+    return points
+
+
 def player_totals(conn) -> dict[int, int]:
-    """Total points per player id. Placeholder until scoring arrives in Phase 6."""
-    return {}
+    """Total group-stage points per player: revealed tasks plus Lauren's adjustments."""
+    totals: dict[int, int] = {}
+    revealed = conn.execute(
+        "SELECT id FROM tasks WHERE status = 'revealed' AND stage = 'group'"
+    ).fetchall()
+    for task in revealed:
+        for player_id, points in task_results(conn, task["id"]).items():
+            totals[player_id] = totals.get(player_id, 0) + points
+    for row in conn.execute(
+        "SELECT player_id, SUM(points) AS points FROM adjustments GROUP BY player_id"
+    ):
+        totals[row["player_id"]] = totals.get(row["player_id"], 0) + row["points"]
+    return totals
 
 
 def build_central_state() -> dict:
@@ -79,12 +123,30 @@ def build_admin_state() -> dict:
                LEFT JOIN player_groups ON player_groups.id = tasks.group_id
                ORDER BY tasks.sort_order, tasks.id"""
         ).fetchall()
+        performer_rows = conn.execute(
+            """SELECT task_performers.task_id, task_performers.player_id,
+                      task_performers.status, players.name
+               FROM task_performers
+               JOIN players ON players.id = task_performers.player_id
+               ORDER BY players.name COLLATE NOCASE"""
+        ).fetchall()
     finally:
         conn.close()
+
+    # Everything below works on data we already fetched, so the connection can be closed.
+    performers_by_task: dict[int, list[dict]] = {}
+    for row in performer_rows:
+        performers_by_task.setdefault(row["task_id"], []).append(
+            {"player_id": row["player_id"], "name": row["name"], "status": row["status"]}
+        )
+
     state["players"] = [
         {**player_to_dict(row), "removed": bool(row["removed"])} for row in players
     ]
-    state["tasks"] = [dict(row) for row in tasks]
+    state["tasks"] = [
+        {**dict(row), "performers": performers_by_task.get(row["id"], [])}
+        for row in tasks
+    ]
     state["groups"] = [{"id": b["id"], "name": b["name"]} for b in state["boards"]]
     return state
 
