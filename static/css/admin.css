@@ -56,3 +56,15 @@ h2 { margin-top: 32px; font-family: var(--font-display); }
 
 .completed { margin-top: 24px; }
 .completed summary { padding: 12px 0; font-size: 18px; font-weight: 700; cursor: pointer; }
+
+.choice-row.three { grid-template-columns: repeat(3, 1fr); }
+
+.ballots { width: 100%; }
+.ballots summary { padding: 8px 0; font-weight: 600; cursor: pointer; }
+.judge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-bg);
+}

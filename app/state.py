@@ -1,7 +1,7 @@
 """Builds the snapshot each screen receives. Each audience only gets what it may see."""
 from app.config import PUBLIC_URL
 from app.db import connect
-from app.scoring import task_points
+from app.scoring import task_points, trimmed_total
 
 
 def player_to_dict(row) -> dict:
@@ -19,8 +19,8 @@ def get_setting(conn, key: str) -> str:
     return row["value"] if row else ""
 
 
-def task_results(conn, task_id: int) -> dict[int, int]:
-    """Points per performer for one task, calculated from the ballots."""
+def task_breakdown(conn, task_id: int) -> dict[int, dict]:
+    """Per performer: trimmed judge total, points, and status. Sat-out players are left out."""
     performers = conn.execute(
         """SELECT task_performers.player_id, task_performers.status
            FROM task_performers
@@ -45,10 +45,19 @@ def task_results(conn, task_id: int) -> dict[int, int]:
             stars[row["performer_id"]].append(row["stars"])
 
     points = task_points(stars)
+    breakdown = {}
     for row in performers:
+        pid = row["player_id"]
         if row["status"] == "dq":
-            points[row["player_id"]] = 0  # Greg's disqualification
-    return points
+            breakdown[pid] = {"total": None, "points": 0, "status": "dq"}  # Greg's disqualification
+        else:
+            breakdown[pid] = {"total": trimmed_total(stars[pid]), "points": points[pid], "status": "in"}
+    return breakdown
+
+
+def task_results(conn, task_id: int) -> dict[int, int]:
+    """Points per performer for one task."""
+    return {pid: result["points"] for pid, result in task_breakdown(conn, task_id).items()}
 
 
 def player_totals(conn) -> dict[int, int]:
@@ -194,6 +203,15 @@ def build_central_state() -> dict:
                ORDER BY tasks.sort_order, tasks.id
                LIMIT 1"""
         ).fetchone()
+        last = conn.execute(
+            """SELECT tasks.id, tasks.title, player_groups.name AS group_name
+               FROM tasks
+               LEFT JOIN player_groups ON player_groups.id = tasks.group_id
+               WHERE tasks.status = 'revealed' AND tasks.stage = 'group'
+               ORDER BY tasks.revealed_at DESC, tasks.id DESC
+               LIMIT 1"""
+        ).fetchone()
+        last_breakdown = task_breakdown(conn, last["id"]) if last else {}
         judge_count = locked_count = 0
         if task:
             judge_count = conn.execute(
@@ -231,18 +249,30 @@ def build_central_state() -> dict:
             "locked_count": locked_count,
         }
 
+    last_result = None
+    if last:
+        players_by_id = {row["id"]: row for row in players}
+        rows = [
+            {**player_to_dict(players_by_id[pid]), **result}
+            for pid, result in last_breakdown.items()
+            if pid in players_by_id
+        ]
+        rows.sort(key=lambda r: (-r["points"], -(r["total"] or 0), r["name"].lower()))
+        last_result = {"title": last["title"], "group_name": last["group_name"], "rows": rows}
+
     return {
         "audience": "central",
         "mode": mode,
         "join_url": f"{PUBLIC_URL}/join",
         "current_task": current_task,
         "up_next": dict(up_next) if up_next else None,
+        "last_result": last_result,
         "joined_order": [player_to_dict(row) for row in players],
         "boards": boards,
     }
 
 def build_admin_state(central: dict | None = None) -> dict:
-    """Everything central sees, plus the full player and task lists."""
+    """Everything central sees, plus full player, task, and ballot lists."""
     state = dict(central) if central else build_central_state()
     state["audience"] = "admin"
     conn = connect()
@@ -264,21 +294,62 @@ def build_admin_state(central: dict | None = None) -> dict:
                JOIN players ON players.id = task_performers.player_id
                ORDER BY players.name COLLATE NOCASE"""
         ).fetchall()
+        score_rows = conn.execute(
+            """SELECT scores.task_id, scores.judge_id, scores.stars,
+                      performers.name AS performer_name
+               FROM scores
+               JOIN players AS performers ON performers.id = scores.performer_id
+               ORDER BY performers.name COLLATE NOCASE"""
+        ).fetchall()
     finally:
         conn.close()
 
     # Everything below works on data we already fetched, so the connection can be closed.
+    players_by_id = {row["id"]: row for row in players}
+
     performers_by_task: dict[int, list[dict]] = {}
     for row in performer_rows:
         performers_by_task.setdefault(row["task_id"], []).append(
             {"player_id": row["player_id"], "name": row["name"], "status": row["status"]}
         )
 
+    # task id -> judge id -> the scores that judge gave
+    ballots: dict[int, dict[int, list[dict]]] = {}
+    for row in score_rows:
+        ballots.setdefault(row["task_id"], {}).setdefault(row["judge_id"], []).append(
+            {"performer": row["performer_name"], "stars": row["stars"]}
+        )
+
+    def judges_for(task) -> list[dict]:
+        """Everyone who should judge this task, plus anyone who has a ballot in it."""
+        if task["status"] == "draft" or task["stage"] != "group":
+            return []
+        task_ballots = ballots.get(task["id"], {})
+        judge_ids = [
+            row["id"] for row in players
+            if not row["removed"] and row["group_id"] != task["group_id"]
+        ]
+        judge_ids += [jid for jid in task_ballots if jid not in judge_ids]
+        return [
+            {
+                "player_id": jid,
+                "name": players_by_id[jid]["name"],
+                "removed": bool(players_by_id[jid]["removed"]),
+                "locked": jid in task_ballots,
+                "scores": task_ballots.get(jid, []),
+            }
+            for jid in judge_ids
+        ]
+
     state["players"] = [
         {**player_to_dict(row), "removed": bool(row["removed"])} for row in players
     ]
     state["tasks"] = [
-        {**dict(row), "performers": performers_by_task.get(row["id"], [])}
+        {
+            **dict(row),
+            "performers": performers_by_task.get(row["id"], []),
+            "judges": judges_for(row),
+        }
         for row in tasks
     ]
     state["groups"] = [{"id": b["id"], "name": b["name"]} for b in state["boards"]]

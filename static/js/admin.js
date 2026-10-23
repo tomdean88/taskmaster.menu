@@ -2,6 +2,7 @@ const TOKEN_KEY = "taskmaster_admin_token";
 const $ = (id) => document.getElementById(id);
 let socket = null;
 let retryDelay = 1000;
+const openBallots = new Set(); // which tasks' ballot lists Lauren has expanded
 
 function getToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
@@ -208,6 +209,43 @@ function taskItem(task) {
       performers.append(row);
     }
     item.append(performers);
+  }
+  
+  // Ballot audit: who has locked in, exactly what they gave, and a reset button.
+  if (task.judges.length) {
+    const lockedCount = task.judges.filter((j) => j.locked).length;
+    const details = el("details", "ballots");
+    details.open = openBallots.has(task.id);
+    details.addEventListener("toggle", () => {
+      if (details.open) openBallots.add(task.id);
+      else openBallots.delete(task.id);
+    });
+    details.append(el("summary", "", `Ballots (${lockedCount} of ${task.judges.length} locked in)`));
+
+    for (const judge of task.judges) {
+      const row = el("div", "judge");
+      const info = el("div", "item-info");
+      const label = `${judge.locked ? "✓" : "…"} ${judge.name}${judge.removed ? " (removed)" : ""}`;
+      info.append(el("strong", "", label));
+      if (judge.scores.length) {
+        info.append(el("span", "meta", judge.scores.map((s) => `${s.performer} ${s.stars}`).join(" · ")));
+      }
+      row.append(info);
+      if (judge.locked) {
+        row.append(
+          button("Reset", () => {
+            const extra = task.status === "revealed"
+              ? " Points recalculate right away. Reopen the task so they can vote again."
+              : " They'll need to score again.";
+            if (confirm(`Reset ${judge.name}'s ballot?${extra}`)) {
+              api("DELETE", `/tasks/${task.id}/ballots/${judge.player_id}`);
+            }
+          }, "small-button danger")
+        );
+      }
+      details.append(row);
+    }
+    item.append(details);
   }
   return item;
 }

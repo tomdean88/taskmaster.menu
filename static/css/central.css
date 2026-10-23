@@ -55,3 +55,25 @@
 .row .name { flex: 1; }
 .row .points { font-weight: 700; font-variant-numeric: tabular-nums; }
 .vote-count { margin: -1vw 0 1vw; font-size: 1.6vw; color: var(--color-muted); }
+
+/* Results */
+#results { display: flex; flex-direction: column; height: 100%; padding: 3vw 4vw; }
+.results-rows {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 1vw 3vw;
+  margin-top: 2vw;
+}
+.result-line { display: flex; align-items: center; gap: 1vw; font-size: 2vw; }
+.result-line img { width: 4vw; aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
+.result-line .name { flex: 1; }
+.result-line .detail { font-size: 1.5vw; color: var(--color-muted); }
+.result-line .award {
+  min-width: 4vw;
+  text-align: right;
+  font-weight: 700;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}

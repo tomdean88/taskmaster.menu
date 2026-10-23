@@ -82,7 +82,7 @@ def get_task_status(conn, task_id: int) -> str:
 # ---------- TV mode ----------
 
 class TvModeBody(BaseModel):
-    mode: Literal["lobby", "game"]
+    mode: Literal["lobby", "game", "results"]
 
 
 @protected.put("/tv-mode")
@@ -355,6 +355,7 @@ async def reveal_task(task_id: int):
             "UPDATE tasks SET status = 'revealed', revealed_at = CURRENT_TIMESTAMP WHERE id = ?",
             (task_id,),
         )
+        conn.execute("UPDATE settings SET value = 'results' WHERE key = 'tv_mode'")
         conn.commit()
     finally:
         conn.close()
@@ -394,5 +395,21 @@ async def set_performer_status(task_id: int, player_id: int, body: PerformerBody
         conn.close()
     if cursor.rowcount == 0:
         raise HTTPException(404, "That player isn't performing in this task.")
+    await manager.broadcast()
+    return {"ok": True}
+
+@protected.delete("/tasks/{task_id}/ballots/{judge_id}")
+async def reset_ballot(task_id: int, judge_id: int):
+    conn = connect()
+    try:
+        get_task_status(conn, task_id)  # 404 if the task doesn't exist
+        cursor = conn.execute(
+            "DELETE FROM scores WHERE task_id = ? AND judge_id = ?", (task_id, judge_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    if cursor.rowcount == 0:
+        raise HTTPException(404, "That judge has no ballot for this task.")
     await manager.broadcast()
     return {"ok": True}

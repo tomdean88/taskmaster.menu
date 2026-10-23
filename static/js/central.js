@@ -1,4 +1,5 @@
 const $ = (id) => document.getElementById(id);
+const MODES = ["lobby", "game", "results"];
 let retryDelay = 1000;
 
 // Build elements with textContent only, never innerHTML, so names can't inject code.
@@ -14,6 +15,12 @@ function avatar(player) {
   img.src = player.photo_url;
   img.alt = "";
   return img;
+}
+
+function upNextLine(state) {
+  const next = state.up_next;
+  if (!next) return "";
+  return next.stage === "final" ? "Up next: the final!" : `Up next: ${next.group_name} performs`;
 }
 
 function renderLobby(state) {
@@ -32,9 +39,10 @@ function renderGame(state) {
   const task = state.current_task;
   $("task-banner").textContent = task
     ? `Now: ${task.title}${task.group_name ? ` (${task.group_name})` : ""}`
-    : state.up_next
-      ? (state.up_next.stage === "final" ? "Up next: the final!" : `Up next: ${state.up_next.group_name} performs`)
-      : "Waiting for the next task";
+    : upNextLine(state) || "Waiting for the next task";
+  $("vote-count").textContent = task
+    ? `${task.locked_count} of ${task.judge_count} judges locked in`
+    : "";
 
   $("boards").replaceChildren(
     ...state.boards.map((board) => {
@@ -50,15 +58,33 @@ function renderGame(state) {
   );
 }
 
+function renderResults(state) {
+  const result = state.last_result;
+  $("results-title").textContent = result
+    ? `Results: ${result.title}${result.group_name ? ` (${result.group_name})` : ""}`
+    : "No results yet";
+  $("results-rows").replaceChildren(
+    ...(result ? result.rows : []).map((row) => {
+      const line = el("div", "result-line");
+      const detail = row.status === "dq" ? "Disqualified" : `${row.total} from the judges`;
+      line.append(
+        avatar(row),
+        el("span", "name", row.name),
+        el("span", "detail", detail),
+        el("span", "award", `+${row.points}`)
+      );
+      return line;
+    })
+  );
+  $("results-next").textContent = upNextLine(state);
+}
+
 function render(state) {
-  $("lobby").hidden = state.mode !== "lobby";
-  $("game").hidden = state.mode !== "game";
+  for (const mode of MODES) $(mode).hidden = state.mode !== mode;
   for (const node of document.querySelectorAll(".join-url")) node.textContent = state.join_url;
   renderLobby(state);
   renderGame(state);
-  $("vote-count").textContent = task
-    ? `${task.locked_count} of ${task.judge_count} judges locked in`
-    : "";
+  renderResults(state);
 }
 
 function connect() {
