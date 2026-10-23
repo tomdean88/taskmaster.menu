@@ -54,6 +54,9 @@ function render(state) {
   for (const node of document.querySelectorAll(".join-url")) node.textContent = state.join_url;
   renderLobby(state);
   renderGame(state);
+  $("vote-count").textContent = task
+    ? `${task.locked_count} of ${task.judge_count} judges locked in`
+    : "";
 }
 
 function connect() {

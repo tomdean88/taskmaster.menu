@@ -54,3 +54,4 @@
 .row img { width: 3.2vw; }
 .row .name { flex: 1; }
 .row .points { font-weight: 700; font-variant-numeric: tabular-nums; }
+.vote-count { margin: -1vw 0 1vw; font-size: 1.6vw; color: var(--color-muted); }

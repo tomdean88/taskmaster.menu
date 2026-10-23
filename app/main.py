@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from app import admin, join
+from app import admin, ballot, join
 from app.config import PUBLIC_URL
 from app.db import PHOTO_DIR, init_db
 from app.ws import manager
@@ -26,6 +26,7 @@ app = FastAPI(title="Taskmaster Menu", lifespan=lifespan)
 app.include_router(join.router)
 app.include_router(admin.router)
 app.include_router(admin.protected)
+app.include_router(ballot.router)
 
 # StaticFiles checks that its folder exists the moment it is created,
 # which happens before lifespan runs. Create it here so a fresh machine
@@ -96,6 +97,30 @@ async def admin_socket(websocket: WebSocket):
             await websocket.close(code=4401)  # tells the page to show the login screen
             return
         manager.add(websocket, "admin")
+        await manager.send_state(websocket)
+        while True:
+            await websocket.receive_text()
+    except (WebSocketDisconnect, ValueError):
+        pass
+    finally:
+        manager.disconnect(websocket)
+
+@app.get("/play")
+def play_page():
+    return FileResponse(STATIC_DIR / "play.html")
+
+
+@app.websocket("/ws/player")
+async def player_socket(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        first = await websocket.receive_json()
+        token = first.get("token") if isinstance(first, dict) else None
+        player_id = join.player_id_for_token(token)
+        if player_id is None:
+            await websocket.close(code=4401)  # unknown token: the page sends them to /join
+            return
+        manager.add(websocket, "player", player_id)
         await manager.send_state(websocket)
         while True:
             await websocket.receive_text()

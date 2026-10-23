@@ -66,6 +66,67 @@ def player_totals(conn) -> dict[int, int]:
         totals[row["player_id"]] = totals.get(row["player_id"], 0) + row["points"]
     return totals
 
+def build_player_state(player_id: int) -> dict:
+    """One player's personal view. Never includes anyone else's scores."""
+    conn = connect()
+    try:
+        me = conn.execute(
+            "SELECT * FROM players WHERE id = ? AND removed = 0", (player_id,)
+        ).fetchone()
+        task = conn.execute(
+            "SELECT id, title, stage, group_id FROM tasks WHERE status = 'active'"
+        ).fetchone()
+        performers = []
+        my_scores = {}
+        if me and task:
+            performers = conn.execute(
+                """SELECT players.*, task_performers.status AS performer_status
+                   FROM task_performers
+                   JOIN players ON players.id = task_performers.player_id
+                   WHERE task_performers.task_id = ? AND players.removed = 0
+                   ORDER BY players.name COLLATE NOCASE""",
+                (task["id"],),
+            ).fetchall()
+            my_scores = {
+                row["performer_id"]: row["stars"]
+                for row in conn.execute(
+                    "SELECT performer_id, stars FROM scores WHERE task_id = ? AND judge_id = ?",
+                    (task["id"], player_id),
+                )
+            }
+    finally:
+        conn.close()
+
+    if me is None:
+        return {"audience": "player", "me": None}
+
+    state = {"audience": "player", "me": player_to_dict(me), "task": None}
+    if task is None:
+        return state
+
+    my_performer_status = next(
+        (row["performer_status"] for row in performers if row["id"] == player_id), None
+    )
+    if my_performer_status in ("in", "dq"):
+        role = "performer"
+    elif task["stage"] == "group" and me["group_id"] != task["group_id"]:
+        role = "judge"
+    else:
+        role = "spectator"  # sat out, or joined the performing group after the task started
+
+    is_judge = role == "judge"
+    state["task"] = {
+        "id": task["id"],
+        "title": task["title"],
+        "role": role,
+        "performers": [
+            player_to_dict(row) for row in performers if row["performer_status"] == "in"
+        ] if is_judge else [],
+        "my_scores": my_scores if is_judge else {},
+        "locked": is_judge and bool(my_scores),
+    }
+    return state
+
 
 def build_central_state() -> dict:
     conn = connect()
@@ -78,11 +139,24 @@ def build_central_state() -> dict:
             "SELECT * FROM players WHERE removed = 0 ORDER BY id"
         ).fetchall()
         task = conn.execute(
-            """SELECT tasks.title, player_groups.name AS group_name
+            """SELECT tasks.id, tasks.title, tasks.group_id, player_groups.name AS group_name
                FROM tasks
                LEFT JOIN player_groups ON player_groups.id = tasks.group_id
                WHERE tasks.status = 'active'"""
         ).fetchone()
+        judge_count = locked_count = 0
+        if task:
+            judge_count = conn.execute(
+                "SELECT COUNT(*) FROM players WHERE removed = 0 AND group_id != ?",
+                (task["group_id"],),
+            ).fetchone()[0]
+            locked_count = conn.execute(
+                """SELECT COUNT(DISTINCT scores.judge_id)
+                   FROM scores
+                   JOIN players ON players.id = scores.judge_id
+                   WHERE scores.task_id = ? AND players.removed = 0 AND players.group_id != ?""",
+                (task["id"], task["group_id"]),
+            ).fetchone()[0]
         totals = player_totals(conn)
     finally:
         conn.close()
@@ -98,11 +172,20 @@ def build_central_state() -> dict:
         members.sort(key=lambda p: (-p["points"], p["name"].lower()))
         boards.append({"id": group["id"], "name": group["name"], "players": members})
 
+    current_task = None
+    if task:
+        current_task = {
+            "title": task["title"],
+            "group_name": task["group_name"],
+            "judge_count": judge_count,
+            "locked_count": locked_count,
+        }
+
     return {
         "audience": "central",
         "mode": mode,
         "join_url": f"{PUBLIC_URL}/join",
-        "current_task": dict(task) if task else None,
+        "current_task": current_task,
         "joined_order": [player_to_dict(row) for row in players],
         "boards": boards,
     }
@@ -151,9 +234,11 @@ def build_admin_state() -> dict:
     return state
 
 
-def build_state(audience: str) -> dict:
+def build_state(audience: str, player_id: int | None = None) -> dict:
     if audience == "central":
         return build_central_state()
     if audience == "admin":
         return build_admin_state()
+    if audience == "player" and player_id is not None:
+        return build_player_state(player_id)
     raise ValueError(f"Unknown audience: {audience}")

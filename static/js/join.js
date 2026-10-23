@@ -34,7 +34,7 @@ async function checkExistingPlayer() {
   if (!token) return false;
   const res = await fetch("/api/me", { headers: { "X-Player-Token": token } });
   if (!res.ok) return false;
-  showJoined(await res.json());
+  location.replace("/play");
   return true;
 }
 
@@ -202,7 +202,7 @@ $("join-form").addEventListener("submit", async (event) => {
       return;
     }
     saveToken(data.token);
-    showJoined(data.player);
+    location.href = "/play";
   } catch {
     showError("Could not reach the server. Check your Wi-Fi and try again.");
   } finally {

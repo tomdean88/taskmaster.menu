@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Play | Taskmaster</title>
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/play.css">
+</head>
+<body>
+  <main class="phone">
+    <div id="status" class="status-bar" hidden>Reconnecting...</div>
+
+    <header class="me-header">
+      <img id="me-photo" class="me-thumb" alt="">
+      <span id="me-name" class="me-label"></span>
+    </header>
+
+    <section id="waiting" hidden>
+      <h1>Hang tight</h1>
+      <p class="hint">The next task will appear here when it starts.</p>
+    </section>
+
+    <section id="performing" hidden>
+      <h1 id="perform-title"></h1>
+      <p class="hint">You're performing. Good luck!</p>
+    </section>
+
+    <section id="spectating" hidden>
+      <h1 id="spectate-title"></h1>
+      <p class="hint">Sit back and enjoy this one.</p>
+    </section>
+
+    <section id="judging" hidden>
+      <h1 id="judge-title"></h1>
+      <p id="judge-hint" class="hint"></p>
+      <div id="ballot" class="ballot"></div>
+      <p id="error" class="error" role="alert"></p>
+      <button id="lock-in" class="big-button" type="button">Lock in</button>
+      <button id="edit" class="secondary-button" type="button" hidden>Edit my scores</button>
+    </section>
+
+    <section id="removed" hidden>
+      <h1>You've been removed</h1>
+      <p class="hint">If this is a mistake, ask the host to restore you.</p>
+    </section>
+
+    <p class="hint"><button id="start-over" class="link-button" type="button">Not you? Start over</button></p>
+  </main>
+  <script src="/static/js/play.js"></script>
+</body>
+</html>

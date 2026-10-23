@@ -85,3 +85,14 @@ def me(x_player_token: Annotated[str, Header()]):
     if row is None:
         raise HTTPException(404, "Player not found.")
     return player_to_dict(row)
+
+def player_id_for_token(token: str | None) -> int | None:
+    """Which player owns this token? Includes removed players, so they see a 'removed' screen."""
+    if not token:
+        return None
+    conn = connect()
+    try:
+        row = conn.execute("SELECT id FROM players WHERE token = ?", (token,)).fetchone()
+    finally:
+        conn.close()
+    return row["id"] if row else None

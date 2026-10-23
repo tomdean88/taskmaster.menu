@@ -1,0 +1,46 @@
+.me-header { display: flex; align-items: center; gap: 10px; }
+.me-thumb { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.me-label { font-size: 18px; font-weight: 700; }
+
+.ballot { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+
+/* Photo on the left, name above the stars on the right, so long names still fit. */
+.ballot-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  column-gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.ballot-row img {
+  grid-row: span 2;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.ballot-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.stars { display: flex; }
+.star {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  font-size: 30px;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+}
+.star.on { color: var(--color-accent); }
+.ballot.locked { opacity: 0.6; }
+
+.link-button {
+  border: none;
+  background: none;
+  color: var(--color-muted);
+  font-size: 14px;
+  text-decoration: underline;
+}
