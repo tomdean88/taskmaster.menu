@@ -230,13 +230,40 @@ async def update_task(task_id: int, body: TaskUpdate):
     return {"ok": True}
 
 
+def clear_task_activity(conn, task_id: int) -> None:
+    """Remove a task's ballots and performer snapshot. Manual adjustments keep their points."""
+    conn.execute("DELETE FROM scores WHERE task_id = ?", (task_id,))
+    conn.execute("DELETE FROM task_performers WHERE task_id = ?", (task_id,))
+    conn.execute("UPDATE adjustments SET task_id = NULL WHERE task_id = ?", (task_id,))
+
+
 @protected.delete("/tasks/{task_id}")
 async def delete_task(task_id: int):
     conn = connect()
     try:
-        if get_task_status(conn, task_id) != "draft":
-            raise HTTPException(400, "Only tasks that haven't started can be deleted.")
+        if get_task_status(conn, task_id) == "active":
+            raise HTTPException(400, "Cancel the task before deleting it.")
+        clear_task_activity(conn, task_id)
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    await manager.broadcast()
+    return {"ok": True}
+
+
+@protected.post("/tasks/{task_id}/reset")
+async def reset_task(task_id: int):
+    """Send a started or finished task back to queue as a fresh draft."""
+    conn = connect()
+    try:
+        if get_task_status(conn, task_id) == "draft":
+            raise HTTPException(400, "This task hasn't started.")
+        clear_task_activity(conn, task_id)
+        conn.execute(
+            "UPDATE tasks SET status = 'draft', opened_at = NULL, revealed_at = NULL WHERE id = ?",
+            (task_id,),
+        )
         conn.commit()
     finally:
         conn.close()

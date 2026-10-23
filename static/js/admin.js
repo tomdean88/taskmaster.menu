@@ -138,15 +138,20 @@ function taskItem(task) {
   info.append(el("strong", "", task.title), el("span", "meta", `${who} · ${task.status}`));
 
   const actions = el("div", "item-actions");
+  const resetTask = (question) => {
+    if (confirm(question)) api("POST", `/tasks/${task.id}/reset`);
+  };
 
-  // The one lifecycle button that makes sense for this task's current status.
   if (task.status === "draft") {
     actions.append(button("Start", () => api("POST", `/tasks/${task.id}/start`), "small-button primary"));
   } else if (task.status === "active") {
     actions.append(
       button("Reveal", () => {
         if (confirm(`Close voting and reveal "${task.title}"?`)) api("POST", `/tasks/${task.id}/reveal`);
-      }, "small-button primary")
+      }, "small-button primary"),
+      button("Cancel", () => resetTask(
+        `Cancel "${task.title}"? Any ballots cast so far are discarded, and it goes back to Queue.`
+      ))
     );
   } else if (task.status === "revealed") {
     actions.append(
@@ -154,7 +159,10 @@ function taskItem(task) {
         if (confirm(`Reopen voting on "${task.title}"? Its points leave the board until you reveal again.`)) {
           api("POST", `/tasks/${task.id}/reopen`);
         }
-      })
+      }),
+      button("Back to Queue", () => resetTask(
+        `Move "${task.title}" back to Queue? Its ballots and points are cleared so it can be run again fresh.`
+      ))
     );
   }
 
@@ -164,16 +172,19 @@ function taskItem(task) {
       button("↓", () => api("POST", `/tasks/${task.id}/move`, { direction: "down" }))
     );
   }
+
   actions.append(
     button("Rename", () => {
       const title = prompt("New task title", task.title);
       if (title !== null) api("PATCH", `/tasks/${task.id}`, { title });
     })
   );
-  if (task.status === "draft") {
+
+  if (task.status !== "active") {
+    const warning = task.status === "revealed" ? " Its points are removed from the leaderboard." : "";
     actions.append(
       button("Delete", () => {
-        if (confirm(`Delete "${task.title}"?`)) api("DELETE", `/tasks/${task.id}`);
+        if (confirm(`Delete "${task.title}"?${warning} This can't be undone.`)) api("DELETE", `/tasks/${task.id}`);
       }, "small-button danger")
     );
   }
