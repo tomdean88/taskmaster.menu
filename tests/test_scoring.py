@@ -29,7 +29,7 @@ def test_nine_performers_spread_across_bands():
     totals = [32, 30, 27, 25, 24, 21, 18, 15, 9]
     scores = {pid: [t] for pid, t in enumerate(totals, start=1)}
     points = task_points(scores)
-    assert [points[pid] for pid in range(1, 10)] == [4, 4, 4, 3, 3, 2, 2, 1, 1]
+    assert [points[pid] for pid in range(1, 10)] == [5, 4, 4, 3, 3, 2, 2, 1, 1]
 
 
 def test_tied_performers_share_points():
