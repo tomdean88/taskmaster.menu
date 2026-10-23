@@ -1,11 +1,13 @@
 const TOKEN_KEY = "taskmaster_token";
 const SCREENS = ["waiting", "performing", "spectating", "judging", "removed"];
+const TABS = ["play", "board", "me"];
 const $ = (id) => document.getElementById(id);
 
 let socket = null;
 let retryDelay = 1000;
 let retryTimer = null;
 let state = null;      // latest snapshot from the server
+let lastTaskId = null; // detects when a NEW task starts
 
 // The judge's local ballot. Stars tapped here stay on the phone until Lock in.
 let draft = {};        // performer id -> stars
@@ -26,25 +28,81 @@ function el(tag, className, text) {
   return node;
 }
 
+function avatar(player) {
+  const img = el("img");
+  img.src = player.photo_url;
+  img.alt = "";
+  return img;
+}
+
 function showOnly(id) {
   for (const screen of SCREENS) $(screen).hidden = screen !== id;
+}
+
+function showTab(name) {
+  for (const tab of TABS) $(`tab-${tab}`).hidden = tab !== name;
+  for (const b of document.querySelectorAll("[data-tab]")) {
+    b.classList.toggle("selected", b.dataset.tab === name);
+  }
+  render();
+}
+
+function currentTab() {
+  return TABS.find((tab) => !$(`tab-${tab}`).hidden);
 }
 
 function showError(message) {
   $("error").textContent = message;
 }
 
+// Ties share a rank: your rank is 1 + the number of people strictly ahead of you.
+function rankIn(board, player) {
+  return board.players.filter((other) => other.points > player.points).length + 1;
+}
+
+function ordinal(n) {
+  const suffix = { 1: "st", 2: "nd", 3: "rd" }[n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10] || "th";
+  return `${n}${suffix}`;
+}
+
 // ---------- Rendering ----------
 
 function render() {
   if (!state) return;
-  if (!state.me) return showOnly("removed");
+  if (!state.me) {
+    showOnly("removed");
+    return;
+  }
 
   $("me-photo").src = state.me.photo_url;
   $("me-name").textContent = state.me.name;
 
+  renderPlay();
+  renderBoards();
+  renderMe();
+
+  // Red dot on Play when a ballot is waiting and you're looking at another tab.
   const task = state.task;
-  if (!task) return showOnly("waiting");
+  const ballotWaiting = task && task.role === "judge" && (!task.locked || editing);
+  $("play-tab").classList.toggle("attention", Boolean(ballotWaiting) && currentTab() !== "play");
+}
+
+// Which group is up next. The title is never sent, so tasks stay a surprise.
+function upNextText() {
+  const next = state.up_next;
+  if (!next) return "";
+  if (next.stage === "final") return "Up next: the final!";
+  return next.group_id === state.me.group_id
+    ? `Up next: ${next.group_name} performs. That's you!`
+    : `Up next: ${next.group_name} performs. You'll be judging.`;
+}
+
+function renderPlay() {
+  const task = state.task;
+  if (!task) {
+    $("up-next").textContent = upNextText();
+    return showOnly("waiting");
+  }
   if (task.role === "performer") {
     $("perform-title").textContent = task.title;
     return showOnly("performing");
@@ -79,10 +137,6 @@ function renderBallot(task) {
   $("ballot").replaceChildren(
     ...task.performers.map((performer) => {
       const row = el("div", "ballot-row");
-      const img = el("img");
-      img.src = performer.photo_url;
-      img.alt = "";
-
       const stars = el("div", "stars");
       for (let n = 1; n <= 5; n++) {
         const star = el("button", "star", "★");
@@ -96,7 +150,7 @@ function renderBallot(task) {
         });
         stars.append(star);
       }
-      row.append(img, el("span", "ballot-name", performer.name), stars);
+      row.append(avatar(performer), el("span", "ballot-name", performer.name), stars);
       return row;
     })
   );
@@ -105,7 +159,58 @@ function renderBallot(task) {
   $("edit").hidden = !locked;
 }
 
+function renderBoards() {
+  $("phone-boards").replaceChildren(
+    ...state.boards.map((board) => {
+      const section = el("section", "phone-board");
+      section.append(el("h2", "", board.name));
+      for (const player of board.players) {
+        const row = el("div", player.id === state.me.id ? "rank-row me" : "rank-row");
+        row.append(
+          el("span", "rank", String(rankIn(board, player))),
+          avatar(player),
+          el("span", "rank-name", player.name),
+          el("span", "rank-points", String(player.points))
+        );
+        section.append(row);
+      }
+      return section;
+    })
+  );
+}
+
+function renderMe() {
+
+  const board = state.boards.find((b) => b.players.some((p) => p.id === state.me.id));
+  const mine = board && board.players.find((p) => p.id === state.me.id);
+  $("me-stats").textContent = mine
+    ? `${ordinal(rankIn(board, mine))} of ${board.players.length} in ${board.name} · ${mine.points} points`
+    : "";
+
+  const rows = state.my_results.map((result) => {
+    const row = el("div", "result-row");
+    const label = result.note ? `${result.title} (${result.note})` : result.title;
+    const points = result.points === null ? "–" : `${result.points} pts`;
+    row.append(el("span", "", label), el("span", "result-points", points));
+    return row;
+  });
+  if (state.bonus) {
+    const row = el("div", "result-row");
+    row.append(
+      el("span", "", "Bonus from the host"),
+      el("span", "result-points", `${state.bonus > 0 ? "+" : ""}${state.bonus} pts`)
+    );
+    rows.push(row);
+  }
+  if (!rows.length) rows.push(el("p", "hint", "No results yet. They appear after each reveal."));
+  $("my-results").replaceChildren(...rows);
+}
+
 // ---------- Actions ----------
+
+for (const b of document.querySelectorAll("[data-tab]")) {
+  b.addEventListener("click", () => showTab(b.dataset.tab));
+}
 
 $("lock-in").addEventListener("click", async () => {
   const task = state && state.task;
@@ -145,13 +250,19 @@ $("edit").addEventListener("click", () => {
   render();
 });
 
-$("start-over").addEventListener("click", () => {
-  if (!confirm("Start over as a new player? This phone will forget who you are.")) return;
-  clearToken();
-  location.replace("/join");
-});
-
 // ---------- Connection ----------
+
+function handleSnapshot(snapshot) {
+  state = snapshot;
+  const taskId = state.task ? state.task.id : null;
+  if (taskId !== null && taskId !== lastTaskId) {
+    lastTaskId = taskId;
+    showTab("play"); // a new task started: bring everyone to it (showTab also renders)
+    return;
+  }
+  lastTaskId = taskId;
+  render();
+}
 
 function connect() {
   clearTimeout(retryTimer);
@@ -162,10 +273,7 @@ function connect() {
     retryDelay = 1000;
     $("status").hidden = true;
   };
-  socket.onmessage = (event) => {
-    state = JSON.parse(event.data);
-    render();
-  };
+  socket.onmessage = (event) => handleSnapshot(JSON.parse(event.data));
   socket.onclose = (event) => {
     if (event.code === 4401) {
       clearToken();

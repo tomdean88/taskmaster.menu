@@ -53,3 +53,6 @@ h2 { margin-top: 32px; font-family: var(--font-display); }
 
 .performers { width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .performer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.completed { margin-top: 24px; }
+.completed summary { padding: 12px 0; font-size: 18px; font-weight: 700; cursor: pointer; }

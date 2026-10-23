@@ -66,7 +66,7 @@ def player_totals(conn) -> dict[int, int]:
         totals[row["player_id"]] = totals.get(row["player_id"], 0) + row["points"]
     return totals
 
-def build_player_state(player_id: int) -> dict:
+def build_player_state(player_id: int, central: dict | None = None) -> dict:
     """One player's personal view. Never includes anyone else's scores."""
     conn = connect()
     try:
@@ -78,6 +78,9 @@ def build_player_state(player_id: int) -> dict:
         ).fetchone()
         performers = []
         my_scores = {}
+        result_rows = []
+        my_points = {}
+        bonus = 0
         if me and task:
             performers = conn.execute(
                 """SELECT players.*, task_performers.status AS performer_status
@@ -94,13 +97,52 @@ def build_player_state(player_id: int) -> dict:
                     (task["id"], player_id),
                 )
             }
+        if me:
+            result_rows = conn.execute(
+                """SELECT tasks.id, tasks.title, task_performers.status
+                   FROM task_performers
+                   JOIN tasks ON tasks.id = task_performers.task_id
+                   WHERE task_performers.player_id = ?
+                     AND tasks.status = 'revealed' AND tasks.stage = 'group'
+                   ORDER BY tasks.sort_order""",
+                (player_id,),
+            ).fetchall()
+            my_points = {
+                row["id"]: task_results(conn, row["id"]).get(player_id, 0)
+                for row in result_rows
+                if row["status"] != "sat_out"
+            }
+            bonus = conn.execute(
+                "SELECT COALESCE(SUM(points), 0) FROM adjustments WHERE player_id = ?",
+                (player_id,),
+            ).fetchone()[0]
     finally:
         conn.close()
 
     if me is None:
         return {"audience": "player", "me": None}
 
-    state = {"audience": "player", "me": player_to_dict(me), "task": None}
+    central = central or build_central_state()
+    my_results = []
+    for row in result_rows:
+        if row["status"] == "sat_out":
+            my_results.append({"title": row["title"], "points": None, "note": "Sat out"})
+        else:
+            my_results.append({
+                "title": row["title"],
+                "points": my_points[row["id"]],
+                "note": "DQ" if row["status"] == "dq" else "",
+            })
+
+    state = {
+        "audience": "player",
+        "me": player_to_dict(me),
+        "task": None,
+        "boards": central["boards"],  # the same public leaderboard the TV shows
+        "up_next": central["up_next"],
+        "my_results": my_results,
+        "bonus": bonus,
+    }
     if task is None:
         return state
 
@@ -144,6 +186,14 @@ def build_central_state() -> dict:
                LEFT JOIN player_groups ON player_groups.id = tasks.group_id
                WHERE tasks.status = 'active'"""
         ).fetchone()
+        up_next = conn.execute(
+            """SELECT tasks.stage, tasks.group_id, player_groups.name AS group_name
+               FROM tasks
+               LEFT JOIN player_groups ON player_groups.id = tasks.group_id
+               WHERE tasks.status = 'draft'
+               ORDER BY tasks.sort_order, tasks.id
+               LIMIT 1"""
+        ).fetchone()
         judge_count = locked_count = 0
         if task:
             judge_count = conn.execute(
@@ -186,13 +236,14 @@ def build_central_state() -> dict:
         "mode": mode,
         "join_url": f"{PUBLIC_URL}/join",
         "current_task": current_task,
+        "up_next": dict(up_next) if up_next else None,
         "joined_order": [player_to_dict(row) for row in players],
         "boards": boards,
     }
 
-def build_admin_state() -> dict:
+def build_admin_state(central: dict | None = None) -> dict:
     """Everything central sees, plus the full player and task lists."""
-    state = build_central_state()
+    state = dict(central) if central else build_central_state()
     state["audience"] = "admin"
     conn = connect()
     try:
@@ -234,11 +285,11 @@ def build_admin_state() -> dict:
     return state
 
 
-def build_state(audience: str, player_id: int | None = None) -> dict:
+def build_state(audience: str, player_id: int | None = None, central: dict | None = None) -> dict:
     if audience == "central":
-        return build_central_state()
+        return central or build_central_state()
     if audience == "admin":
-        return build_admin_state()
+        return build_admin_state(central)
     if audience == "player" and player_id is not None:
-        return build_player_state(player_id)
+        return build_player_state(player_id, central)
     raise ValueError(f"Unknown audience: {audience}")

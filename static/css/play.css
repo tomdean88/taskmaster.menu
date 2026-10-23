@@ -1,7 +1,9 @@
+/* Header: small photo and name, shown on every tab */
 .me-header { display: flex; align-items: center; gap: 10px; }
 .me-thumb { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
 .me-label { font-size: 18px; font-weight: 700; }
 
+/* Ballot */
 .ballot { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 
 /* Photo on the left, name above the stars on the right, so long names still fit. */
@@ -37,10 +39,66 @@
 .star.on { color: var(--color-accent); }
 .ballot.locked { opacity: 0.6; }
 
-.link-button {
-  border: none;
-  background: none;
-  color: var(--color-muted);
-  font-size: 14px;
-  text-decoration: underline;
+.up-next { margin-top: 24px; font-size: 20px; font-weight: 600; text-align: center; color: var(--color-accent); }
+
+/* Tabs. Leave room at the bottom so the fixed tab bar never covers the Lock in button. */
+main.phone { padding-bottom: 96px; }
+
+.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--color-muted);
+  background: var(--color-surface);
 }
+.tab {
+  position: relative;
+  padding: 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+}
+.tab.selected { color: var(--color-accent); }
+
+/* Red dot: you have a ballot waiting. */
+.tab.attention::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 25%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-error);
+}
+
+/* Leaderboard */
+.phone-board h2 { color: var(--color-accent); }
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+}
+.rank-row.me { background: var(--color-surface); outline: 2px solid var(--color-accent); }
+.rank { width: 28px; text-align: right; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.rank-row img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.rank-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-points { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Me */
+.me-stats { margin-top: 16px; font-size: 20px; }
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-surface);
+}
+.result-points { font-weight: 700; white-space: nowrap; }

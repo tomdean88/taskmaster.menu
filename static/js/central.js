@@ -32,7 +32,9 @@ function renderGame(state) {
   const task = state.current_task;
   $("task-banner").textContent = task
     ? `Now: ${task.title}${task.group_name ? ` (${task.group_name})` : ""}`
-    : "Waiting for the next task";
+    : state.up_next
+      ? (state.up_next.stage === "final" ? "Up next: the final!" : `Up next: ${state.up_next.group_name} performs`)
+      : "Waiting for the next task";
 
   $("boards").replaceChildren(
     ...state.boards.map((board) => {

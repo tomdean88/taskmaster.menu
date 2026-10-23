@@ -17,37 +17,62 @@
       <span id="me-name" class="me-label"></span>
     </header>
 
-    <section id="waiting" hidden>
-      <h1>Hang tight</h1>
-      <p class="hint">The next task will appear here when it starts.</p>
-    </section>
+    <!-- PLAY TAB -->
+    <div id="tab-play">
+      <section id="waiting" hidden>
+        <h1>Hang tight</h1>
+        <p class="hint">The next task will appear here when it starts.</p>
+        <p id="up-next" class="up-next"></p>
+      </section>
 
-    <section id="performing" hidden>
-      <h1 id="perform-title"></h1>
-      <p class="hint">You're performing. Good luck!</p>
-    </section>
+      <section id="performing" hidden>
+        <h1 id="perform-title"></h1>
+        <p class="hint">You're performing. Good luck!</p>
+      </section>
 
-    <section id="spectating" hidden>
-      <h1 id="spectate-title"></h1>
-      <p class="hint">Sit back and enjoy this one.</p>
-    </section>
+      <section id="spectating" hidden>
+        <h1 id="spectate-title"></h1>
+        <p class="hint">Sit back and enjoy this one.</p>
+      </section>
 
-    <section id="judging" hidden>
-      <h1 id="judge-title"></h1>
-      <p id="judge-hint" class="hint"></p>
-      <div id="ballot" class="ballot"></div>
-      <p id="error" class="error" role="alert"></p>
-      <button id="lock-in" class="big-button" type="button">Lock in</button>
-      <button id="edit" class="secondary-button" type="button" hidden>Edit my scores</button>
-    </section>
+      <section id="judging" hidden>
+        <h1 id="judge-title"></h1>
+        <p id="judge-hint" class="hint"></p>
+        <div id="ballot" class="ballot"></div>
+        <p id="error" class="error" role="alert"></p>
+        <button id="lock-in" class="big-button" type="button">Lock in</button>
+        <button id="edit" class="secondary-button" type="button" hidden>Edit my scores</button>
+      </section>
 
-    <section id="removed" hidden>
-      <h1>You've been removed</h1>
-      <p class="hint">If this is a mistake, ask the host to restore you.</p>
-    </section>
+      <section id="removed" hidden>
+        <h1>You've been removed</h1>
+        <p class="hint">Ask the host, or scan the QR code on the TV to join again.</p>
+      </section>
+    </div>
 
-    <p class="hint"><button id="start-over" class="link-button" type="button">Not you? Start over</button></p>
+    <!-- LEADERBOARD TAB -->
+    <div id="tab-board" hidden>
+      <div id="phone-boards"></div>
+    </div>
+
+    <!-- ME TAB -->
+    <div id="tab-me" hidden>
+      <p id="me-stats" class="me-stats"></p>
+      <h2>Your tasks</h2>
+      <div id="my-results"></div>
+    </div>
+      <h2>Your tasks</h2>
+      <div id="my-results"></div>
+      <p class="hint"><button id="start-over" class="link-button" type="button">Not you? Start over</button></p>
+    </div>
   </main>
+
+  <nav class="tabs">
+    <button id="play-tab" type="button" class="tab selected" data-tab="play">Play</button>
+    <button type="button" class="tab" data-tab="board">Leaderboard</button>
+    <button type="button" class="tab" data-tab="me">Me</button>
+  </nav>
+
   <script src="/static/js/play.js"></script>
 </body>
 </html>

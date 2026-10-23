@@ -121,74 +121,84 @@ function renderTaskGroupOptions(groups) {
 }
 
 function renderTasks(tasks) {
-  const list = $("tasks");
-  if (!tasks.length) return list.replaceChildren(el("p", "hint", "No tasks yet."));
-  list.replaceChildren(
-    ...tasks.map((task) => {
-      const info = el("div", "item-info");
-      const who = task.stage === "final" ? "Final" : task.group_name;
-      info.append(el("strong", "", task.title), el("span", "meta", `${who} · ${task.status}`));
+  const upcoming = tasks.filter((t) => t.status !== "revealed");
+  const completed = tasks.filter((t) => t.status === "revealed");
 
-      const actions = el("div", "item-actions");
+  $("tasks").replaceChildren(
+    ...(upcoming.length ? upcoming.map(taskItem) : [el("p", "hint", "No upcoming tasks.")])
+  );
+  $("completed-summary").textContent = `Completed (${completed.length})`;
+  $("completed-tasks").replaceChildren(...completed.map(taskItem));
+  $("completed-wrap").hidden = completed.length === 0;
+}
 
-      // The one lifecycle button that makes sense for this task's current status.
-      if (task.status === "draft") {
-        actions.append(button("Start", () => api("POST", `/tasks/${task.id}/start`), "small-button primary"));
-      } else if (task.status === "active") {
-        actions.append(
-          button("Reveal", () => {
-            if (confirm(`Close voting and reveal "${task.title}"?`)) api("POST", `/tasks/${task.id}/reveal`);
-          }, "small-button primary")
-        );
-      } else if (task.status === "revealed") {
-        actions.append(
-          button("Reopen", () => {
-            if (confirm(`Reopen voting on "${task.title}"? Its points leave the board until you reveal again.`)) {
-              api("POST", `/tasks/${task.id}/reopen`);
-            }
-          })
-        );
-      }
+function taskItem(task) {
+  const info = el("div", "item-info");
+  const who = task.stage === "final" ? "Final" : task.group_name;
+  info.append(el("strong", "", task.title), el("span", "meta", `${who} · ${task.status}`));
 
-      actions.append(
-        button("↑", () => api("POST", `/tasks/${task.id}/move`, { direction: "up" })),
-        button("↓", () => api("POST", `/tasks/${task.id}/move`, { direction: "down" })),
-        button("Rename", () => {
-          const title = prompt("New task title", task.title);
-          if (title !== null) api("PATCH", `/tasks/${task.id}`, { title });
-        })
-      );
-      if (task.status === "draft") {
-        actions.append(
-          button("Delete", () => {
-            if (confirm(`Delete "${task.title}"?`)) api("DELETE", `/tasks/${task.id}`);
-          }, "small-button danger")
-        );
-      }
+  const actions = el("div", "item-actions");
 
-      const item = el("div", task.status === "active" ? "item active-task" : "item");
-      item.append(info, actions);
-
-      // Performer controls once a task has started.
-      if (task.performers.length) {
-        const performers = el("div", "performers");
-        for (const p of task.performers) {
-          const row = el("div", "performer");
-          row.append(el("span", "", p.name));
-          const choices = el("div", "item-actions");
-          for (const [value, label] of [["in", "In"], ["sat_out", "Sat out"], ["dq", "DQ"]]) {
-            const b = button(label, () => api("PATCH", `/tasks/${task.id}/performers/${p.player_id}`, { status: value }));
-            if (p.status === value) b.classList.add("selected");
-            choices.append(b);
-          }
-          row.append(choices);
-          performers.append(row);
+  // The one lifecycle button that makes sense for this task's current status.
+  if (task.status === "draft") {
+    actions.append(button("Start", () => api("POST", `/tasks/${task.id}/start`), "small-button primary"));
+  } else if (task.status === "active") {
+    actions.append(
+      button("Reveal", () => {
+        if (confirm(`Close voting and reveal "${task.title}"?`)) api("POST", `/tasks/${task.id}/reveal`);
+      }, "small-button primary")
+    );
+  } else if (task.status === "revealed") {
+    actions.append(
+      button("Reopen", () => {
+        if (confirm(`Reopen voting on "${task.title}"? Its points leave the board until you reveal again.`)) {
+          api("POST", `/tasks/${task.id}/reopen`);
         }
-        item.append(performers);
-      }
-      return item;
+      })
+    );
+  }
+
+  if (task.status !== "revealed") {
+    actions.append(
+      button("↑", () => api("POST", `/tasks/${task.id}/move`, { direction: "up" })),
+      button("↓", () => api("POST", `/tasks/${task.id}/move`, { direction: "down" }))
+    );
+  }
+  actions.append(
+    button("Rename", () => {
+      const title = prompt("New task title", task.title);
+      if (title !== null) api("PATCH", `/tasks/${task.id}`, { title });
     })
   );
+  if (task.status === "draft") {
+    actions.append(
+      button("Delete", () => {
+        if (confirm(`Delete "${task.title}"?`)) api("DELETE", `/tasks/${task.id}`);
+      }, "small-button danger")
+    );
+  }
+
+  const item = el("div", task.status === "active" ? "item active-task" : "item");
+  item.append(info, actions);
+
+  // Performer controls once a task has started.
+  if (task.performers.length) {
+    const performers = el("div", "performers");
+    for (const p of task.performers) {
+      const row = el("div", "performer");
+      row.append(el("span", "", p.name));
+      const choices = el("div", "item-actions");
+      for (const [value, label] of [["in", "In"], ["sat_out", "Sat out"], ["dq", "DQ"]]) {
+        const b = button(label, () => api("PATCH", `/tasks/${task.id}/performers/${p.player_id}`, { status: value }));
+        if (p.status === value) b.classList.add("selected");
+        choices.append(b);
+      }
+      row.append(choices);
+      performers.append(row);
+    }
+    item.append(performers);
+  }
+  return item;
 }
 
 function renderPlayers(players, groups) {

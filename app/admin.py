@@ -248,15 +248,18 @@ async def delete_task(task_id: int):
 async def move_task(task_id: int, body: MoveBody):
     conn = connect()
     try:
-        ids = [
-            row["id"]
-            for row in conn.execute("SELECT id FROM tasks ORDER BY sort_order, id")
-        ]
+        rows = conn.execute("SELECT id, status FROM tasks ORDER BY sort_order, id").fetchall()
+        ids = [row["id"] for row in rows]
+        # Only upcoming tasks can move, and they only swap with other upcoming tasks.
+        movable = [row["id"] for row in rows if row["status"] != "revealed"]
         if task_id not in ids:
             raise HTTPException(404, "Task not found.")
-        i = ids.index(task_id)
-        j = i - 1 if body.direction == "up" else i + 1
-        if 0 <= j < len(ids):
+        if task_id not in movable:
+            raise HTTPException(400, "Completed tasks can't be moved.")
+        k = movable.index(task_id)
+        m = k - 1 if body.direction == "up" else k + 1
+        if 0 <= m < len(movable):
+            i, j = ids.index(movable[k]), ids.index(movable[m])
             ids[i], ids[j] = ids[j], ids[i]
             conn.executemany(
                 "UPDATE tasks SET sort_order = ? WHERE id = ?",

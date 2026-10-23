@@ -1,7 +1,7 @@
 """Tracks open WebSocket connections and pushes state snapshots to them."""
 from fastapi import WebSocket
 
-from app.state import build_state
+from app.state import build_central_state, build_state
 
 # Who is watching: (audience, player_id). player_id is only set for players.
 Viewer = tuple[str, int | None]
@@ -27,12 +27,14 @@ class ConnectionManager:
 
     async def broadcast(self) -> None:
         """Send every connected screen a fresh snapshot of the current state."""
+        central = build_central_state()  # built ONCE, then shared by every snapshot
         snapshots: dict[Viewer, dict] = {}
         for websocket, viewer in list(self.connections.items()):
             if viewer not in snapshots:
-                snapshots[viewer] = build_state(*viewer)
+                snapshots[viewer] = build_state(*viewer, central=central)
             try:
                 await websocket.send_json(snapshots[viewer])
             except Exception:
                 self.disconnect(websocket)
+
 manager = ConnectionManager()
