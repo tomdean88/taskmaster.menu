@@ -77,3 +77,26 @@
   color: var(--color-accent);
   font-variant-numeric: tabular-nums;
 }
+
+/* Champion */
+#champion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 3vw;
+  text-align: center;
+}
+.champion-faces { display: flex; gap: 3vw; margin: 2vw 0; }
+.champion-faces img {
+  width: 22vw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 0.6vw solid var(--color-accent);
+}
+.champion-name { margin: 0; font-family: var(--font-display); font-size: 6vw; color: var(--color-accent); }
+.final-scores { display: flex; gap: 4vw; margin-top: 2vw; font-size: 2vw; color: var(--color-muted); }
+.final-line { display: flex; gap: 1vw; }
+.final-line .award { font-weight: 700; color: var(--color-text); }

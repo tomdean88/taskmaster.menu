@@ -25,10 +25,11 @@
       <p id="error" class="error" role="alert"></p>
 
       <h2>TV screen</h2>
-      <div class="choice-row three">
+      <div class="choice-row">
         <button type="button" class="choice" data-mode="lobby">Lobby</button>
         <button type="button" class="choice" data-mode="game">Game</button>
         <button type="button" class="choice" data-mode="results">Results</button>
+        <button type="button" class="choice" data-mode="champion">Champion</button>
       </div>
 
       <h2>Tasks</h2>
@@ -58,6 +59,11 @@
         </div>
       </form>
       <div id="adjustments" class="list"></div>
+  
+      <h2>Final</h2>
+      <p class="hint">Finalists perform in final tasks. Everyone else judges.</p>
+      <button id="pick-leaders" type="button" class="secondary-button">Pick group leaders</button>
+      <div id="finalist-picker" class="list"></div>  
 
       <h2>Groups</h2>
       <div id="groups" class="list"></div>

@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 let socket = null;
 let retryDelay = 1000;
 const openBallots = new Set(); // which tasks' ballot lists Lauren has expanded
+let latestState = null; // the most recent snapshot, for buttons that need the whole picture
 
 function getToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
@@ -98,6 +99,7 @@ async function api(method, path, body) {
 // ---------- Rendering ----------
 
 function render(state) {
+  latestState = state;
   for (const b of document.querySelectorAll("[data-mode]")) {
     b.classList.toggle("selected", b.dataset.mode === state.mode);
   }
@@ -107,6 +109,7 @@ function render(state) {
   renderGroups(state.groups);
   renderAdjustPlayers(state.players);
   renderAdjustments(state.adjustments);
+  renderFinalists(state);
 }
 
 function renderTaskGroupOptions(groups) {
@@ -356,6 +359,67 @@ function renderAdjustments(adjustments) {
   );
 }
 
+function renderFinalists(state) {
+  const chosen = new Set(state.finalist_ids);
+  const finalPoints = new Map(state.final.finalists.map((p) => [p.id, p.final_points]));
+  const groupName = (id) => (state.groups.find((g) => g.id === id) || {}).name || "";
+  const active = state.players.filter((p) => !p.removed);
+  if (!active.length) {
+    return $("finalist-picker").replaceChildren(el("p", "hint", "No players yet."));
+  }
+
+  // Finalists first, then everyone else (each part stays in name order).
+  const sorted = [...active].sort((a, b) => Number(chosen.has(b.id)) - Number(chosen.has(a.id)));
+  $("finalist-picker").replaceChildren(
+    ...sorted.map((player) => {
+      const isFinalist = chosen.has(player.id);
+      const info = el("div", "item-info");
+      const meta = isFinalist && finalPoints.has(player.id)
+        ? `${groupName(player.group_id)} · ${finalPoints.get(player.id)} final pts`
+        : groupName(player.group_id);
+      info.append(el("strong", "", player.name), el("span", "meta", meta));
+
+      const toggle = button(
+        isFinalist ? "Finalist ✓" : "Make finalist",
+        () => {
+          const next = new Set(chosen);
+          if (next.has(player.id)) next.delete(player.id);
+          else next.add(player.id);
+          api("PUT", "/finalists", { player_ids: [...next] });
+        },
+        isFinalist ? "small-button selected" : "small-button"
+      );
+      const actions = el("div", "item-actions");
+      actions.append(toggle);
+
+      const item = el("div", "item");
+      item.append(info, actions);
+      return item;
+    })
+  );
+}
+
+function pickGroupLeaders() {
+  if (!latestState) return;
+  const leaders = [];
+  for (const board of latestState.boards) {
+    if (!board.players.length) continue;
+    const top = board.players[0].points; // boards arrive sorted, highest first
+    const tied = board.players.filter((p) => p.points === top);
+    if (tied.length > 1) {
+      return showError(
+        `${board.name} has a tie for the lead: ${tied.map((p) => p.name).join(", ")}. ` +
+        "Settle it with a tiebreak, then choose the finalist below."
+      );
+    }
+    leaders.push(tied[0]);
+  }
+  if (!leaders.length) return showError("No players yet.");
+  if (confirm(`Make ${leaders.map((p) => p.name).join(" and ")} the finalists?`)) {
+    api("PUT", "/finalists", { player_ids: leaders.map((p) => p.id) });
+  }
+}
+
 // ---------- Event wiring ----------
 
 for (const b of document.querySelectorAll("[data-mode]")) {
@@ -413,7 +477,7 @@ async function submitAdjustment(sign) {
 $("adjust-award").addEventListener("click", () => submitAdjustment(1));
 $("adjust-penalty").addEventListener("click", () => submitAdjustment(-1));
 $("adjust-form").addEventListener("submit", (event) => event.preventDefault());
-
+$("pick-leaders").addEventListener("click", pickGroupLeaders);
 $("logout").addEventListener("click", showLogin);
 
 // Start: try the saved token. If it's stale, the socket closes with 4401 and we show login.

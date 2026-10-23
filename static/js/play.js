@@ -105,6 +105,9 @@ function renderPlay() {
   }
   if (task.role === "performer") {
     $("perform-title").textContent = task.title;
+    $("perform-hint").textContent = task.stage === "final"
+      ? "You're in the final. Good luck!"
+      : "You're performing. Good luck!";
     return showOnly("performing");
   }
   if (task.role === "spectator") {
@@ -128,7 +131,7 @@ function renderBallot(task) {
   if (task.locked && !editing) draft = { ...task.my_scores };
 
   const locked = task.locked && !editing;
-  $("judge-title").textContent = task.title;
+  $("judge-title").textContent = task.stage === "final" ? `The final: ${task.title}` : task.title;
   $("judge-hint").textContent = locked
     ? "Locked in. You can still edit until voting closes."
     : "Score every performer from 1 to 5.";

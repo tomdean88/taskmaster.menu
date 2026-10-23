@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const MODES = ["lobby", "game", "results"];
+const MODES = ["lobby", "game", "results", "champion"];
 let retryDelay = 1000;
 
 // Build elements with textContent only, never innerHTML, so names can't inject code.
@@ -37,9 +37,12 @@ function renderLobby(state) {
 
 function renderGame(state) {
   const task = state.current_task;
-  $("task-banner").textContent = task
-    ? `Now: ${task.title}${task.group_name ? ` (${task.group_name})` : ""}`
-    : upNextLine(state) || "Waiting for the next task";
+
+  let banner = upNextLine(state) || "Waiting for the next task";
+  if (task && task.stage === "final") banner = `The final: ${task.title}`;
+  else if (task) banner = `Now: ${task.title}${task.group_name ? ` (${task.group_name})` : ""}`;
+  $("task-banner").textContent = banner;
+
   $("vote-count").textContent = task
     ? `${task.locked_count} of ${task.judge_count} judges locked in`
     : "";
@@ -60,9 +63,12 @@ function renderGame(state) {
 
 function renderResults(state) {
   const result = state.last_result;
-  $("results-title").textContent = result
-    ? `Results: ${result.title}${result.group_name ? ` (${result.group_name})` : ""}`
-    : "No results yet";
+
+  let title = "No results yet";
+  if (result && result.stage === "final") title = `Final results: ${result.title}`;
+  else if (result) title = `Results: ${result.title}${result.group_name ? ` (${result.group_name})` : ""}`;
+  $("results-title").textContent = title;
+
   $("results-rows").replaceChildren(
     ...(result ? result.rows : []).map((row) => {
       const line = el("div", "result-line");
@@ -79,12 +85,38 @@ function renderResults(state) {
   $("results-next").textContent = upNextLine(state);
 }
 
+function renderChampion(state) {
+  const { finalists, champion_ids: championIds } = state.final;
+  const champions = finalists.filter((p) => championIds.includes(p.id));
+
+  if (champions.length) {
+    $("champion-kicker").textContent = champions.length > 1
+      ? "It's a tie! Your co-champions are..."
+      : "Your Taskmaster champion is...";
+    $("champion-faces").replaceChildren(...champions.map(avatar));
+    $("champion-name").textContent = champions.map((p) => p.name).join(" & ");
+  } else {
+    $("champion-kicker").textContent = "The final is still to come";
+    $("champion-faces").replaceChildren();
+    $("champion-name").textContent = "";
+  }
+
+  $("final-scores").replaceChildren(
+    ...finalists.map((p) => {
+      const line = el("div", "final-line");
+      line.append(el("span", "name", p.name), el("span", "award", `${p.final_points} pts`));
+      return line;
+    })
+  );
+}
+
 function render(state) {
   for (const mode of MODES) $(mode).hidden = state.mode !== mode;
   for (const node of document.querySelectorAll(".join-url")) node.textContent = state.join_url;
   renderLobby(state);
   renderGame(state);
   renderResults(state);
+  renderChampion(state);
 }
 
 function connect() {
