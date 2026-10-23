@@ -11,6 +11,7 @@ from app.config import ADMIN_PASSWORD
 from app.db import connect
 from app.ws import manager
 
+LOGIN_FAIL_DELAY = 1  # seconds; tests set this to 0
 
 # ---------- Sessions ----------
 
@@ -49,7 +50,7 @@ async def login(body: LoginBody):
     if not ADMIN_PASSWORD or not secrets.compare_digest(
         body.password.encode(), ADMIN_PASSWORD.encode()
     ):
-        await asyncio.sleep(1)  # makes password guessing painfully slow
+        await asyncio.sleep(LOGIN_FAIL_DELAY)  # makes password guessing painfully slow
         raise HTTPException(401, "Wrong password.")
 
     token = secrets.token_urlsafe(32)

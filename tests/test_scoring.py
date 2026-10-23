@@ -1,4 +1,12 @@
-from app.scoring import competition_ranks, round_half_up, task_points, trimmed_total
+import pytest
+
+from app.scoring import (
+    competition_ranks,
+    rank_to_points,
+    round_half_up,
+    task_points,
+    trimmed_total,
+)
 
 
 def test_round_half_up_differs_from_builtin():
@@ -48,3 +56,38 @@ def test_trim_blunts_a_single_burying_vote():
     honest = {1: [4, 4, 4, 4, 4], 2: [3, 3, 3, 3, 3]}
     buried = {1: [4, 4, 4, 4, 1], 2: [3, 3, 3, 3, 3]}  # one judge tanks performer 1
     assert task_points(honest) == task_points(buried)
+
+def test_everyone_tied_all_get_five():
+    assert task_points({1: [3], 2: [3], 3: [3]}) == {1: 5, 2: 5, 3: 5}
+
+
+def test_two_way_tie_at_the_bottom():
+    assert task_points({1: [10], 2: [8], 3: [5], 4: [5]}) == {1: 5, 2: 4, 3: 2, 4: 2}
+
+
+def test_two_performers_get_five_and_one():
+    assert task_points({1: [10], 2: [5]}) == {1: 5, 2: 1}
+
+
+def test_four_judges_are_not_trimmed():
+    assert trimmed_total([1, 2, 3, 4]) == 10
+
+
+def test_five_judges_are_trimmed():
+    assert trimmed_total([1, 2, 3, 4, 5]) == 9
+
+
+def test_single_performer_rank_gives_five():
+    assert rank_to_points(1, 1) == 5
+
+
+@pytest.mark.parametrize("count", range(2, 13))
+def test_any_group_size_spans_five_to_one(count):
+    # Distinct totals: performer 0 is best, the last performer is worst.
+    scores = {pid: [count - pid] for pid in range(count)}
+    points = task_points(scores)
+    ordered = [points[pid] for pid in range(count)]
+    assert ordered[0] == 5
+    assert ordered[-1] == 1
+    assert all(1 <= p <= 5 for p in ordered)
+    assert ordered == sorted(ordered, reverse=True)  # a lower total never earns more points
