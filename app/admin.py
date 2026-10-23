@@ -413,3 +413,47 @@ async def reset_ballot(task_id: int, judge_id: int):
         raise HTTPException(404, "That judge has no ballot for this task.")
     await manager.broadcast()
     return {"ok": True}
+
+# ---------- Point adjustments ----------
+
+class AdjustmentBody(BaseModel):
+    player_id: int
+    points: int = Field(ge=-20, le=20)  # catches typos like 50 instead of 5
+    reason: str = Field(default="", max_length=80)
+
+
+@protected.post("/adjustments")
+async def add_adjustment(body: AdjustmentBody):
+    if body.points == 0:
+        raise HTTPException(400, "An adjustment needs at least 1 point.")
+    conn = connect()
+    try:
+        player = conn.execute(
+            "SELECT removed FROM players WHERE id = ?", (body.player_id,)
+        ).fetchone()
+        if player is None or player["removed"]:
+            raise HTTPException(400, "That player isn't in the game.")
+        cursor = conn.execute(
+            "INSERT INTO adjustments (player_id, points, reason) VALUES (?, ?, ?)",
+            (body.player_id, body.points, body.reason.strip()),
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+    finally:
+        conn.close()
+    await manager.broadcast()
+    return {"ok": True, "id": new_id}
+
+
+@protected.delete("/adjustments/{adjustment_id}")
+async def delete_adjustment(adjustment_id: int):
+    conn = connect()
+    try:
+        cursor = conn.execute("DELETE FROM adjustments WHERE id = ?", (adjustment_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    if cursor.rowcount == 0:
+        raise HTTPException(404, "Adjustment not found.")
+    await manager.broadcast()
+    return {"ok": True}

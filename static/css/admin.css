@@ -68,3 +68,14 @@ h2 { margin-top: 32px; font-family: var(--font-display); }
   padding: 6px 0;
   border-top: 1px solid var(--color-bg);
 }
+
+/* Keep errors visible at the top of the screen, even when Lauren is scrolled far down. */
+#error:not(:empty) {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 10px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}

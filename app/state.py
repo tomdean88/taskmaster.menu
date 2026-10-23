@@ -301,6 +301,13 @@ def build_admin_state(central: dict | None = None) -> dict:
                JOIN players AS performers ON performers.id = scores.performer_id
                ORDER BY performers.name COLLATE NOCASE"""
         ).fetchall()
+        adjustment_rows = conn.execute(
+            """SELECT adjustments.id, adjustments.player_id, adjustments.points,
+                      adjustments.reason, players.name AS player_name
+               FROM adjustments
+               JOIN players ON players.id = adjustments.player_id
+               ORDER BY adjustments.id DESC"""
+        ).fetchall()
     finally:
         conn.close()
 
@@ -353,6 +360,7 @@ def build_admin_state(central: dict | None = None) -> dict:
         for row in tasks
     ]
     state["groups"] = [{"id": b["id"], "name": b["name"]} for b in state["boards"]]
+    state["adjustments"] = [dict(row) for row in adjustment_rows]
     return state
 
 

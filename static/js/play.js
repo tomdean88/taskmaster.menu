@@ -197,7 +197,7 @@ function renderMe() {
   if (state.bonus) {
     const row = el("div", "result-row");
     row.append(
-      el("span", "", "Bonus from the host"),
+      el("span", "", "Host adjustments"),
       el("span", "result-points", `${state.bonus > 0 ? "+" : ""}${state.bonus} pts`)
     );
     rows.push(row);

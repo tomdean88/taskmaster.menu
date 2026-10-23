@@ -46,6 +46,18 @@
 
       <h2>Players</h2>
       <div id="players" class="list"></div>
+  
+      <h2>Points</h2>
+      <form id="adjust-form" class="stack">
+        <select id="adjust-player" class="text-input"></select>
+        <input id="adjust-amount" class="text-input" type="number" inputmode="numeric" min="1" max="20" value="1">
+        <input id="adjust-reason" class="text-input" maxlength="80" placeholder="Reason (optional)" autocomplete="off">
+        <div class="choice-row">
+          <button type="button" id="adjust-award" class="choice">+ Award</button>
+          <button type="button" id="adjust-penalty" class="choice">− Penalty</button>
+        </div>
+      </form>
+      <div id="adjustments" class="list"></div>
 
       <h2>Groups</h2>
       <div id="groups" class="list"></div>

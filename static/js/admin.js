@@ -105,6 +105,8 @@ function render(state) {
   renderTasks(state.tasks);
   renderPlayers(state.players, state.groups);
   renderGroups(state.groups);
+  renderAdjustPlayers(state.players);
+  renderAdjustments(state.adjustments);
 }
 
 function renderTaskGroupOptions(groups) {
@@ -314,6 +316,46 @@ function renderGroups(groups) {
   );
 }
 
+function renderAdjustPlayers(players) {
+  const select = $("adjust-player");
+  const previous = select.value; // keep Lauren's choice when a snapshot redraws the list
+  const placeholder = el("option", "", "Choose a player");
+  placeholder.value = "";
+  const options = players
+    .filter((p) => !p.removed)
+    .map((p) => {
+      const option = el("option", "", p.name);
+      option.value = String(p.id);
+      return option;
+    });
+  select.replaceChildren(placeholder, ...options);
+  if ([...select.options].some((o) => o.value === previous)) select.value = previous;
+}
+
+function renderAdjustments(adjustments) {
+  const list = $("adjustments");
+  if (!adjustments.length) return list.replaceChildren(el("p", "hint", "No adjustments yet."));
+  list.replaceChildren(
+    ...adjustments.map((a) => {
+      const signed = `${a.points > 0 ? "+" : ""}${a.points}`;
+      const info = el("div", "item-info");
+      info.append(
+        el("strong", "", `${a.player_name} ${signed}`),
+        el("span", "meta", a.reason || "No reason given")
+      );
+      const actions = el("div", "item-actions");
+      actions.append(
+        button("Undo", () => {
+          if (confirm(`Undo ${signed} for ${a.player_name}?`)) api("DELETE", `/adjustments/${a.id}`);
+        }, "small-button danger")
+      );
+      const item = el("div", "item");
+      item.append(info, actions);
+      return item;
+    })
+  );
+}
+
 // ---------- Event wiring ----------
 
 for (const b of document.querySelectorAll("[data-mode]")) {
@@ -351,6 +393,26 @@ $("task-form").addEventListener("submit", async (event) => {
     : { title, stage: "group", group_id: Number(choice) };
   if (await api("POST", "/tasks", body)) $("task-title").value = ""; // only clear on success
 });
+
+async function submitAdjustment(sign) {
+  const playerId = Number($("adjust-player").value);
+  const amount = Math.round(Number($("adjust-amount").value));
+  if (!playerId) return showError("Choose a player to adjust.");
+  if (!amount || amount < 1 || amount > 20) return showError("Enter an amount from 1 to 20.");
+  const ok = await api("POST", "/adjustments", {
+    player_id: playerId,
+    points: sign * amount,
+    reason: $("adjust-reason").value.trim(),
+  });
+  if (ok) {
+    $("adjust-reason").value = "";
+    $("adjust-amount").value = 1;
+  }
+}
+
+$("adjust-award").addEventListener("click", () => submitAdjustment(1));
+$("adjust-penalty").addEventListener("click", () => submitAdjustment(-1));
+$("adjust-form").addEventListener("submit", (event) => event.preventDefault());
 
 $("logout").addEventListener("click", showLogin);
 
