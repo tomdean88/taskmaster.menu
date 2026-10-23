@@ -1,0 +1,56 @@
+/* TV layout. Sizes use vw (percent of screen width) so everything scales with the TV. */
+.tv { height: 100vh; overflow: hidden; }
+
+.status {
+  position: fixed;
+  top: 1vw;
+  right: 1vw;
+  padding: 0.5vw 1vw;
+  font-size: 1.2vw;
+  border-radius: var(--radius);
+  background: var(--color-error);
+  color: #000000;
+}
+
+/* Lobby */
+#lobby {
+  display: flex;
+  align-items: center;
+  gap: 4vw;
+  height: 100%;
+  padding: 4vw;
+}
+.lobby-left { flex: 1; }
+.tv-title { font-size: 5vw; margin: 0; }
+.tv-subtitle { font-size: 2vw; color: var(--color-muted); }
+.face-grid { display: flex; flex-wrap: wrap; gap: 1.5vw; }
+.face { width: 8vw; text-align: center; }
+.face img { width: 100%; }
+.face span {
+  display: block;
+  font-size: 1.3vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Circle photos everywhere on the TV */
+.face img, .row img { aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
+
+/* QR codes must stay dark-on-light with a margin around them, or phones can't scan them. */
+.qr-box { background: #ffffff; padding: 1vw; border-radius: var(--radius); }
+.qr-box img { display: block; width: 100%; }
+.qr-box p { margin: 0.5vw 0 0; font-size: 1.1vw; color: #111111; text-align: center; word-break: break-all; }
+.qr-big { width: 28vw; }
+.qr-small { width: 10vw; align-self: flex-end; }
+
+/* Game */
+#game { display: flex; flex-direction: column; height: 100%; padding: 2vw; }
+.task-banner { font-family: var(--font-display); font-size: 3vw; font-weight: 700; padding-bottom: 1.5vw; }
+.game-body { flex: 1; display: flex; gap: 2vw; min-height: 0; }
+.boards { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; }
+.board h2 { font-size: 2.5vw; margin: 0 0 1vw; color: var(--color-accent); }
+.row { display: flex; align-items: center; gap: 1vw; padding: 0.3vw 0; font-size: 1.8vw; }
+.row img { width: 3.2vw; }
+.row .name { flex: 1; }
+.row .points { font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -6,22 +6,14 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
 from app.db import PHOTO_DIR, connect
+from app.state import player_to_dict
+from app.ws import manager
 
 router = APIRouter(prefix="/api")
 
 MAX_NAME_LENGTH = 24
 MAX_PHOTO_BYTES = 5 * 1024 * 1024  # 5 MB ceiling; phones resize first, so real uploads are tiny
 PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-
-
-def player_to_dict(row) -> dict:
-    """The public view of a player. Notice the token is never included."""
-    return {
-        "id": row["id"],
-        "name": row["name"],
-        "group_id": row["group_id"],
-        "photo_url": f"/photos/{row['photo_path']}" if row["photo_path"] else None,
-    }
 
 
 @router.get("/groups")
@@ -76,7 +68,7 @@ async def join(
         ).fetchone()
     finally:
         conn.close()
-
+    await manager.broadcast()
     return {"token": token, "player": player_to_dict(row)}
 
 

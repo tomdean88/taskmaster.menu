@@ -19,11 +19,26 @@
         <div id="groups" class="choice-row"></div>
 
         <p class="label">Your photo</p>
-        <label for="photo" class="photo-picker">
-          <img id="preview" alt="" hidden>
-          <span id="photo-hint">Tap to take a selfie</span>
-        </label>
+        <div id="photo-picker">
+          <label for="photo" class="photo-picker">
+            <span>Tap to take a selfie</span>
+          </label>
+          <label for="photo-library" class="secondary-button">Choose from photos</label>
+        </div>
+
+        <div id="photo-editor" class="photo-editor" hidden>
+          <canvas id="photo-canvas" class="photo-canvas"></canvas>
+          <p class="hint">Drag to position. Slide to zoom.</p>
+          <input id="zoom" class="zoom" type="range" min="1" max="3" step="0.01" value="1">
+          <div class="choice-row editor-actions">
+            <label for="photo" class="secondary-button">Retake</label>
+            <label for="photo-library" class="secondary-button">Choose another</label>
+          </div>
+        </div>
+
+        <!-- The two real file inputs. Labels above open them. -->
         <input id="photo" class="visually-hidden" type="file" accept="image/*" capture="user">
+        <input id="photo-library" class="visually-hidden" type="file" accept="image/*">
 
         <p id="error" class="error" role="alert"></p>
         <button id="submit" type="submit" class="big-button">Join</button>

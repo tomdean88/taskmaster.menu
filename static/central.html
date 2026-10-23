@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taskmaster</title>
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/central.css">
+</head>
+<body class="tv">
+  <div id="status" class="status">Reconnecting...</div>
+
+  <section id="lobby" hidden>
+    <div class="lobby-left">
+      <h1 class="tv-title">Scan to join</h1>
+      <p id="joined-count" class="tv-subtitle"></p>
+      <div id="lobby-faces" class="face-grid"></div>
+    </div>
+    <div class="qr-box qr-big">
+      <img src="/qr.svg" alt="Join QR code">
+      <p class="join-url"></p>
+    </div>
+  </section>
+
+  <section id="game" hidden>
+    <header id="task-banner" class="task-banner"></header>
+    <div class="game-body">
+      <div id="boards" class="boards"></div>
+      <div class="qr-box qr-small">
+        <img src="/qr.svg" alt="Join QR code">
+      </div>
+    </div>
+  </section>
+
+  <script src="/static/js/central.js"></script>
+</body>
+</html>

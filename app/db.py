@@ -66,6 +66,12 @@ CREATE TABLE IF NOT EXISTS adjustments (
 -- The database itself guarantees only one task is active at a time.
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_task
     ON tasks(status) WHERE status = 'active';
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 """
 
 
@@ -90,6 +96,7 @@ def init_db() -> None:
                 "INSERT INTO player_groups (name, sort_order) VALUES (?, ?)",
                 [("Group 1", 1), ("Group 2", 2)],
             )
+        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('tv_mode', 'lobby')")            
         conn.commit()
     finally:
         conn.close()

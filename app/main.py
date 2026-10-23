@@ -1,17 +1,18 @@
-import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import qrcode
 import qrcode.image.svg
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from app import join
+from app.config import PUBLIC_URL
 from app.db import PHOTO_DIR, init_db
+from app.ws import manager
 
-PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
 @asynccontextmanager
@@ -29,14 +30,13 @@ app.include_router(join.router)
 # (like the Fedora laptop) doesn't crash on first start.
 PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/photos", StaticFiles(directory=PHOTO_DIR), name="photos")
-
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
-@app.get("/join")
-def join_page():
-    return FileResponse(STATIC_DIR / "join.html")
+@app.get("/")
+def root():
+    """Anyone who types the bare address lands on the join page."""
+    return RedirectResponse("/join")
 
 
 @app.get("/health")
@@ -50,3 +50,28 @@ def join_qr():
     """The join QR code for central, built from PUBLIC_URL."""
     img = qrcode.make(f"{PUBLIC_URL}/join", image_factory=qrcode.image.svg.SvgPathImage)
     return Response(img.to_string(), media_type="image/svg+xml")
+
+
+@app.get("/join")
+def join_page():
+    return FileResponse(STATIC_DIR / "join.html")
+
+
+@app.get("/central")
+def central_page():
+    return FileResponse(STATIC_DIR / "central.html")
+
+
+@app.websocket("/ws/central")
+async def central_socket(websocket: WebSocket):
+    await manager.connect(websocket, "central")
+    try:
+        await manager.send_state(websocket)
+        while True:
+            # Central never sends us anything. Waiting here keeps the
+            # connection open and tells us the moment it closes.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(websocket)
