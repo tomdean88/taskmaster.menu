@@ -17,13 +17,6 @@ function saveToken(token) {
   try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
 }
 
-function showJoined(player) {
-  $("join-section").hidden = true;
-  $("joined-section").hidden = false;
-  $("me-photo").src = player.photo_url;
-  $("me-name").textContent = player.name;
-}
-
 function showError(message) {
   $("error").textContent = message;
 }
