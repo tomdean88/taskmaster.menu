@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Party data: database and guest photos (never commit)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# OS clutter
+Thumbs.db
+.DS_Store
