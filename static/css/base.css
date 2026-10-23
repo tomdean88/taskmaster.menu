@@ -1,0 +1,88 @@
+/* Layout only. Colors and fonts come from theme.css variables. */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+.phone { max-width: 480px; margin: 0 auto; padding: 24px 16px; }
+
+h1 { font-family: var(--font-display); }
+
+.label { display: block; margin: 20px 0 8px; font-weight: 600; }
+
+.text-input {
+  width: 100%;
+  padding: 14px;
+  font-size: 18px; /* 16px or more stops iPhones from zooming in on focus */
+  border-radius: var(--radius);
+  border: 1px solid var(--color-muted);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.choice {
+  padding: 18px;
+  font-size: 18px;
+  border-radius: var(--radius);
+  border: 2px solid var(--color-muted);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.choice.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.photo-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  width: 60%;
+  margin: 0 auto;
+  border: 2px dashed var(--color-muted);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.photo-picker img { width: 100%; height: 100%; object-fit: cover; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+.big-button {
+  width: 100%;
+  margin-top: 24px;
+  padding: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.big-button:disabled { opacity: 0.5; }
+
+.error { color: var(--color-error); min-height: 1.2em; }
+
+.avatar {
+  display: block;
+  width: 60%;
+  margin: 0 auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.me-name { text-align: center; font-size: 24px; font-weight: 700; }
+
+.hint { text-align: center; color: var(--color-muted); }

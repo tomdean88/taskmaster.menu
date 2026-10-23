@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 import qrcode
 import qrcode.image.svg
 from fastapi import FastAPI
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app import join
 from app.db import PHOTO_DIR, init_db
@@ -28,6 +29,14 @@ app.include_router(join.router)
 # (like the Fedora laptop) doesn't crash on first start.
 PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/photos", StaticFiles(directory=PHOTO_DIR), name="photos")
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/join")
+def join_page():
+    return FileResponse(STATIC_DIR / "join.html")
 
 
 @app.get("/health")

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join | Taskmaster</title>
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+</head>
+<body>
+  <main class="phone">
+    <section id="join-section">
+      <h1>Join the game</h1>
+      <form id="join-form">
+        <label class="label" for="name">Your name</label>
+        <input id="name" class="text-input" maxlength="24" autocomplete="off">
+
+        <p class="label">Your group</p>
+        <div id="groups" class="choice-row"></div>
+
+        <p class="label">Your photo</p>
+        <label for="photo" class="photo-picker">
+          <img id="preview" alt="" hidden>
+          <span id="photo-hint">Tap to take a selfie</span>
+        </label>
+        <input id="photo" class="visually-hidden" type="file" accept="image/*" capture="user">
+
+        <p id="error" class="error" role="alert"></p>
+        <button id="submit" type="submit" class="big-button">Join</button>
+      </form>
+    </section>
+
+    <section id="joined-section" hidden>
+      <h1>You're in!</h1>
+      <img id="me-photo" class="avatar" alt="">
+      <p id="me-name" class="me-name"></p>
+      <p class="hint">Keep this page open. Voting happens here.</p>
+    </section>
+  </main>
+  <script src="/static/js/join.js"></script>
+</body>
+</html>
