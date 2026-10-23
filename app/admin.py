@@ -82,7 +82,7 @@ def get_task_status(conn, task_id: int) -> str:
 # ---------- TV mode ----------
 
 class TvModeBody(BaseModel):
-    mode: Literal["lobby", "game", "results"]
+    mode: Literal["lobby", "game", "results", "champion"]
 
 
 @protected.put("/tv-mode")
@@ -316,15 +316,23 @@ async def start_task(task_id: int):
             raise HTTPException(404, "Task not found.")
         if task["status"] != "draft":
             raise HTTPException(400, "This task has already started.")
-        if task["stage"] == "final":
-            raise HTTPException(400, "Final tasks can't be started yet.")
 
-        performers = conn.execute(
-            "SELECT id FROM players WHERE group_id = ? AND removed = 0",
-            (task["group_id"],),
-        ).fetchall()
-        if not performers:
-            raise HTTPException(400, "Nobody is in that group yet.")
+        if task["stage"] == "final":
+            performers = conn.execute(
+                """SELECT players.id
+                   FROM finalists
+                   JOIN players ON players.id = finalists.player_id
+                   WHERE players.removed = 0"""
+            ).fetchall()
+            if len(performers) < 2:
+                raise HTTPException(400, "Pick at least two finalists first.")
+        else:
+            performers = conn.execute(
+                "SELECT id FROM players WHERE group_id = ? AND removed = 0",
+                (task["group_id"],),
+            ).fetchall()
+            if not performers:
+                raise HTTPException(400, "Nobody is in that group yet.")
 
         # One transaction: the status change and the snapshot succeed or fail together.
         conn.execute(
@@ -455,5 +463,31 @@ async def delete_adjustment(adjustment_id: int):
         conn.close()
     if cursor.rowcount == 0:
         raise HTTPException(404, "Adjustment not found.")
+    await manager.broadcast()
+    return {"ok": True}
+
+# ---------- The final ----------
+
+class FinalistsBody(BaseModel):
+    player_ids: list[int] = Field(max_length=12)
+
+
+@protected.put("/finalists")
+async def set_finalists(body: FinalistsBody):
+    """Replace the whole finalist list in one go."""
+    player_ids = list(dict.fromkeys(body.player_ids))  # drop duplicates, keep order
+    conn = connect()
+    try:
+        for pid in player_ids:
+            row = conn.execute("SELECT removed FROM players WHERE id = ?", (pid,)).fetchone()
+            if row is None or row["removed"]:
+                raise HTTPException(400, "Finalists must be players who are in the game.")
+        conn.execute("DELETE FROM finalists")
+        conn.executemany(
+            "INSERT INTO finalists (player_id) VALUES (?)", [(pid,) for pid in player_ids]
+        )
+        conn.commit()
+    finally:
+        conn.close()
     await manager.broadcast()
     return {"ok": True}

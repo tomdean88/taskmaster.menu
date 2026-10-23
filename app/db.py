@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS finalists (
+    player_id INTEGER PRIMARY KEY REFERENCES players(id)
+);
+
 """
 
 

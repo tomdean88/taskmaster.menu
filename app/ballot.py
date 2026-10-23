@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.db import connect
 from app.ws import manager
+from app.state import judge_ids_for
 
 router = APIRouter(prefix="/api")
 
@@ -36,7 +37,7 @@ async def lock_in_ballot(body: BallotBody, x_player_token: Annotated[str, Header
         ).fetchone()
         if task is None or task["status"] != "active":
             raise HTTPException(400, "Voting for that task has closed.")
-        if task["stage"] != "group" or judge["group_id"] == task["group_id"]:
+        if judge["id"] not in judge_ids_for(conn, task):
             raise HTTPException(403, "You aren't judging this task.")
 
         expected = {
