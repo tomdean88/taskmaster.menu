@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from app import join
+from app import admin, join
 from app.config import PUBLIC_URL
 from app.db import PHOTO_DIR, init_db
 from app.ws import manager
@@ -24,6 +24,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Taskmaster Menu", lifespan=lifespan)
 app.include_router(join.router)
+app.include_router(admin.router)
+app.include_router(admin.protected)
 
 # StaticFiles checks that its folder exists the moment it is created,
 # which happens before lifespan runs. Create it here so a fresh machine
@@ -72,6 +74,32 @@ async def central_socket(websocket: WebSocket):
             # connection open and tells us the moment it closes.
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(websocket)
+
+
+@app.get("/admin")
+def admin_page():
+    return FileResponse(STATIC_DIR / "admin.html")
+
+
+@app.websocket("/ws/admin")
+async def admin_socket(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        # Browsers can't put headers on a WebSocket, and URLs end up in logs,
+        # so the admin token arrives as the first message instead.
+        first = await websocket.receive_json()
+        token = first.get("token") if isinstance(first, dict) else None
+        if not admin.is_valid_session(token):
+            await websocket.close(code=4401)  # tells the page to show the login screen
+            return
+        manager.add(websocket, "admin")
+        await manager.send_state(websocket)
+        while True:
+            await websocket.receive_text()
+    except (WebSocketDisconnect, ValueError):
         pass
     finally:
         manager.disconnect(websocket)

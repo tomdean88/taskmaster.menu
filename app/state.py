@@ -63,8 +63,35 @@ def build_central_state() -> dict:
         "boards": boards,
     }
 
+def build_admin_state() -> dict:
+    """Everything central sees, plus the full player and task lists."""
+    state = build_central_state()
+    state["audience"] = "admin"
+    conn = connect()
+    try:
+        players = conn.execute(
+            "SELECT * FROM players ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+        tasks = conn.execute(
+            """SELECT tasks.id, tasks.title, tasks.stage, tasks.status, tasks.group_id,
+                      player_groups.name AS group_name
+               FROM tasks
+               LEFT JOIN player_groups ON player_groups.id = tasks.group_id
+               ORDER BY tasks.sort_order, tasks.id"""
+        ).fetchall()
+    finally:
+        conn.close()
+    state["players"] = [
+        {**player_to_dict(row), "removed": bool(row["removed"])} for row in players
+    ]
+    state["tasks"] = [dict(row) for row in tasks]
+    state["groups"] = [{"id": b["id"], "name": b["name"]} for b in state["boards"]]
+    return state
+
 
 def build_state(audience: str) -> dict:
     if audience == "central":
         return build_central_state()
+    if audience == "admin":
+        return build_admin_state()
     raise ValueError(f"Unknown audience: {audience}")

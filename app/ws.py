@@ -11,6 +11,10 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, audience: str) -> None:
         await websocket.accept()
+        self.add(websocket, audience)
+
+    def add(self, websocket: WebSocket, audience: str) -> None:
+        """Register a socket that is already accepted (and, for admin, verified)."""
         self.connections[websocket] = audience
 
     def disconnect(self, websocket: WebSocket) -> None:
