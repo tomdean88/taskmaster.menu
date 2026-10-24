@@ -105,6 +105,7 @@ async def admin_socket(websocket: WebSocket):
     finally:
         manager.disconnect(websocket)
 
+
 @app.get("/play")
 def play_page():
     return FileResponse(STATIC_DIR / "play.html")

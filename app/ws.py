@@ -1,5 +1,6 @@
 """Tracks open WebSocket connections and pushes state snapshots to them."""
 from fastapi import WebSocket
+import traceback
 
 from app.state import build_central_state, build_state
 
@@ -27,14 +28,25 @@ class ConnectionManager:
 
     async def broadcast(self) -> None:
         """Send every connected screen a fresh snapshot of the current state."""
-        central = build_central_state()  # built ONCE, then shared by every snapshot
-        snapshots: dict[Viewer, dict] = {}
+        try:
+            central = build_central_state()  # built ONCE, then shared by every snapshot
+        except Exception:
+            traceback.print_exc()  # the change is already saved; never fail the request over a snapshot
+            return
+        snapshots: dict[Viewer, dict | None] = {}
         for websocket, viewer in list(self.connections.items()):
             if viewer not in snapshots:
-                snapshots[viewer] = build_state(*viewer, central=central)
+                try:
+                    snapshots[viewer] = build_state(*viewer, central=central)
+                except Exception:
+                    traceback.print_exc()
+                    snapshots[viewer] = None
+            if snapshots[viewer] is None:
+                continue
             try:
                 await websocket.send_json(snapshots[viewer])
             except Exception:
                 self.disconnect(websocket)
+
 
 manager = ConnectionManager()

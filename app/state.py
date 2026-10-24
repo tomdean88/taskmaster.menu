@@ -97,6 +97,7 @@ def judge_ids_for(conn, task) -> set[int]:
         )
     return {row["id"] for row in rows}
 
+
 def build_player_state(player_id: int, central: dict | None = None) -> dict:
     """One player's personal view. Never includes anyone else's scores."""
     conn = connect()
@@ -318,6 +319,7 @@ def build_central_state() -> dict:
         "boards": boards,
     }
 
+
 def build_admin_state(central: dict | None = None) -> dict:
     """Everything central sees, plus full player, task, and ballot lists."""
     state = dict(central) if central else build_central_state()
@@ -412,23 +414,6 @@ def build_admin_state(central: dict | None = None) -> dict:
     state["finalist_ids"] = finalist_ids
     return state
 
-    def judges_for(task) -> list[dict]:
-        """Everyone who may judge this task, plus anyone who has a ballot in it."""
-        if task["id"] not in judge_sets:
-            return []  # drafts have no judges yet
-        task_ballots = ballots.get(task["id"], {})
-        judge_ids = [row["id"] for row in players if row["id"] in judge_sets[task["id"]]]
-        judge_ids += [jid for jid in task_ballots if jid not in judge_ids]
-        return [
-            {
-                "player_id": jid,
-                "name": players_by_id[jid]["name"],
-                "removed": bool(players_by_id[jid]["removed"]),
-                "locked": jid in task_ballots,
-                "scores": task_ballots.get(jid, []),
-            }
-            for jid in judge_ids
-        ]
 
 def build_state(audience: str, player_id: int | None = None, central: dict | None = None) -> dict:
     if audience == "central":

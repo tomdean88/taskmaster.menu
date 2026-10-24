@@ -204,5 +204,9 @@ $("join-form").addEventListener("submit", async (event) => {
 });
 
 (async () => {
-  if (!(await checkExistingPlayer())) await loadGroups();
+  try {
+    if (!(await checkExistingPlayer())) await loadGroups();
+  } catch {
+    showError("Could not reach the server. Check your Wi-Fi and refresh.");
+  }
 })();

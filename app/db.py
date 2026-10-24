@@ -105,7 +105,7 @@ def init_db() -> None:
                 "INSERT INTO player_groups (name, sort_order) VALUES (?, ?)",
                 [("Group 1", 1), ("Group 2", 2)],
             )
-        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('tv_mode', 'lobby')")            
+        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('tv_mode', 'lobby')")
         conn.commit()
     finally:
         conn.close()

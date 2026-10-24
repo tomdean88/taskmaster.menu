@@ -70,6 +70,7 @@ function ordinal(n) {
 function render() {
   if (!state) return;
   if (!state.me) {
+    for (const tab of TABS) $(`tab-${tab}`).hidden = tab !== "play"; // the message lives on Play
     showOnly("removed");
     return;
   }

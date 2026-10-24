@@ -4,20 +4,6 @@ A Jackbox-style party app for a Taskmaster-themed birthday. Guests join from the
 
 ## How it works
 
-- **Central** (TV): shows the join QR, the current task, and the live leaderboard.
-- **Phones**: guests join with a name and selfie, then score performers 1 to 5 during each task.
-- **Admin**: the host runs the night from her phone: creates tasks, opens voting, and fixes mistakes.
-
-### Scoring
-
-1. Every judge scores every performer 1 to 5.
-2. Each performer's highest and lowest scores are dropped (when there are 5 or more judges), and the rest are summed.
-3. Performers are ranked by total and spread across 1 to 5 Taskmaster points. Ties share points.
-
-Points are never stored. They are always calculated from ballots, so correcting a ballot corrects the leaderboard.
-
-## How it works
-
 - **Central** (`/central`, on the TV): lobby with the join QR, live leaderboards, and results after each task.
 - **Phones** (`/join`, then `/play`): guests join with a name and selfie, judge the other group's tasks, and check the leaderboard and their own results.
 - **Admin** (`/admin`): the host runs the night from her phone: tasks, voting, the TV screen, players, ballots, and point adjustments.
