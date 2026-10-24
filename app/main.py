@@ -25,6 +25,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Taskmaster Menu", lifespan=lifespan)
+@app.middleware("http")
+async def no_stale_code(request, call_next):
+    """Pages, scripts, and styles must always be fresh. Photos never change, so they may be cached."""
+    response = await call_next(request)
+    if not request.url.path.startswith("/photos/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 app.include_router(join.router)
 app.include_router(admin.router)
 app.include_router(admin.protected)

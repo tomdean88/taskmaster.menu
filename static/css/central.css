@@ -40,7 +40,6 @@
 /* QR codes must stay dark-on-light with a margin around them, or phones can't scan them. */
 .qr-box { background: #ffffff; padding: 1vw; border-radius: var(--radius); }
 .qr-box img { display: block; width: 100%; }
-.qr-box p { margin: 0.5vw 0 0; font-size: 1.1vw; color: #111111; text-align: center; word-break: break-all; }
 .qr-big { width: 28vw; }
 .qr-small { width: 10vw; align-self: flex-end; }
 
