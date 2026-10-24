@@ -112,7 +112,6 @@ function renderChampion(state) {
 
 function render(state) {
   for (const mode of MODES) $(mode).hidden = state.mode !== mode;
-  for (const node of document.querySelectorAll(".join-url")) node.textContent = state.join_url;
   renderLobby(state);
   renderGame(state);
   renderResults(state);

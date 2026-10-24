@@ -19,6 +19,8 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 async def lifespan(app: FastAPI):
     # Runs once when the server starts, before any requests are served.
     init_db()
+    if "localhost" in PUBLIC_URL or "127.0.0.1" in PUBLIC_URL:
+        print(f"WARNING: PUBLIC_URL is {PUBLIC_URL}. Phones can't use that QR code. Check .env.")
     yield
 
 
